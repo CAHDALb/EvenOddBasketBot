@@ -6,8 +6,6 @@ signals.json
 data/
 evenodd.db
 
-# Конфигурация (если ещё используется)
-config.py
 
 # Python
 __pycache__/
