@@ -1,14 +1,12 @@
-# ======================================
-# Runtime data
-# ======================================
+# Секретные данные
+.env
 
+# Runtime данные
 signals.json
-
 data/
-
 evenodd.db
 
-# Локальные настройки
+# Конфигурация (если ещё используется)
 config.py
 
 # Python
@@ -18,7 +16,3 @@ __pycache__/
 # IDE
 .idea/
 .vscode/
-
-# Windows
-Thumbs.db
-Desktop.ini
