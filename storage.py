@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import os
 
 # Путь к файлу с сохранёнными ID
 FILE_PATH = Path("data/sent_matches.json")
@@ -20,6 +21,10 @@ def load_sent_matches():
 
 
 def save_sent_matches(matches):
+
+    # Создаём папку data, если её нет
+    os.makedirs("data", exist_ok=True)
+
     """
     Сохраняет список отправленных матчей.
     """
