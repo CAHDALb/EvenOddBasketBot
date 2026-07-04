@@ -91,18 +91,18 @@ def main():
                     f"🔗 {match_url}"
                 )
 
+                # Сначала запоминаем матч, чтобы при перезапуске не отправить его повторно
+                sent_matches.add(match_id)
+                save_sent_matches(sent_matches)
+
+                # Сохраняем сигнал в базу
+                add_signal(match)
+
+                # Только после сохранения отправляем сообщение
                 result = send_telegram(message)
 
                 if result.get("ok"):
-
-                    add_signal(match)
-
                     print("Сообщение отправлено.")
-
-                    sent_matches.add(match_id)
-
-                    save_sent_matches(sent_matches)
-
                 else:
                     print("Ошибка Telegram:")
                     print(result)
