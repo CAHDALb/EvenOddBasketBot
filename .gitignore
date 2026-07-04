@@ -1,0 +1,24 @@
+# ======================================
+# Runtime data
+# ======================================
+
+signals.json
+
+data/
+
+evenodd.db
+
+# Локальные настройки
+config.py
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
