@@ -6,7 +6,8 @@ from strategy import check_strategy
 from telegram_sender import send_telegram
 from storage import load_sent_matches, save_sent_matches
 from database import add_signal
-
+import threading
+from web_server import run_web_server
 
 def main():
     """
@@ -114,6 +115,12 @@ def main():
 if __name__ == "__main__":
 
     try:
+        # Запускаем маленький web-сервер для Render
+        web_thread = threading.Thread(target=run_web_server)
+        web_thread.daemon = True
+        web_thread.start()
+
+        # Запускаем основного бота
         main()
 
     except KeyboardInterrupt:
