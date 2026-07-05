@@ -9,6 +9,8 @@ from database import add_signal
 import threading
 from web_server import run_web_server
 
+print("MAIN.PY ЗАГРУЖЕН")
+
 def main():
     """
     Главный цикл программы.
