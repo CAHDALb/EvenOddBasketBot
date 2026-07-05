@@ -8,10 +8,21 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 
 class HealthHandler(BaseHTTPRequestHandler):
+
+    # Отключаем лишние логи HTTP
+    def log_message(self, format, *args):
+        return
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+
     def do_GET(self):
         self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
         self.end_headers()
-        self.wfile.write("EvenOddBasketBot is running".encode("utf-8"))
+        self.wfile.write(b"OK")
 
 
 def run_web_server():
