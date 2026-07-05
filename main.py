@@ -18,10 +18,12 @@ def main():
     sent_matches = load_sent_matches()
 
     print("Бот запущен...")
+    print("Render heartbeat: основной цикл main() запущен")
 
     while True:
 
         print("\nПроверка матчей...")
+        print("Heartbeat: бот продолжает работать")
 
         # Получаем список матчей
         try:
