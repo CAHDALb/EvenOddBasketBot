@@ -113,6 +113,80 @@ def signal_exists(match_id):
     # Если row не None — матч найден
     return row is not None
 
+# =========================================================
+# Добавляет новый сигнал в SQLite
+# =========================================================
+
+def add_signal(match):
+    """
+    Сохраняет новый сигнал в базу SQLite.
+    Если такой матч уже есть — второй раз не добавляет.
+    """
+
+    # Берём ID матча
+    match_id = match["id"]
+
+    # Если такой сигнал уже есть — выходим
+    if signal_exists(match_id):
+        return False
+
+    # Подключаемся к базе
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Добавляем сигнал в таблицу
+    cursor.execute(
+        """
+        INSERT INTO signals (
+            id,
+            strategy,
+            country,
+            league,
+            home,
+            away,
+            signal_datetime,
+            weekday,
+            hour,
+            q1,
+            q2,
+            q3,
+            prediction,
+            status,
+            final_total,
+            result,
+            roi,
+            match_url
+        )
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            match_id,
+            "odd_total",
+            match.get("country"),
+            match.get("league"),
+            match.get("home_name"),
+            match.get("away_name"),
+            None,
+            None,
+            match.get("q1_total"),
+            match.get("q2_total"),
+            match.get("q3_total"),
+            "odd",
+            "waiting",
+            None,
+            None,
+            None,
+            match.get("match_url")
+        )
+    )
+
+    # Сохраняем изменения
+    connection.commit()
+
+    # Закрываем базу
+    connection.close()
+
+    return True
 
 if __name__ == "__main__":
     create_tables()

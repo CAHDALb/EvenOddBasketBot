@@ -5,7 +5,7 @@ from parser import get_matches
 from strategy import check_strategy
 from telegram_sender import send_telegram
 from storage import load_sent_matches, save_sent_matches
-from database import add_signal
+from sqlite_database import create_tables, add_signal
 import threading
 from web_server import run_web_server
 from notifications import create_start_message, create_error_message
@@ -22,6 +22,10 @@ def main():
 
     print("Бот запущен...")
     print("Render heartbeat: основной цикл main() запущен")
+
+    # Создаём таблицы SQLite, если их ещё нет
+    create_tables()
+
     send_telegram(create_start_message())
 
     while True:
