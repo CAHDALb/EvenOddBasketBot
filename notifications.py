@@ -28,6 +28,16 @@ def create_start_message():
         "🏀 Бот начал проверку LIVE-матчей.\n"
         "⏱ Интервал проверки: 180 секунд."
     )
+def create_error_message(error):
+    """
+    Создаёт сообщение об ошибке.
+    """
+
+    return (
+        "⚠️ EvenOddBasketBot: ошибка\n\n"
+        "Не удалось получить матчи с Flashscore.\n\n"
+        f"Ошибка:\n{error}"
+    )
 
 def create_result_message(signal):
     """

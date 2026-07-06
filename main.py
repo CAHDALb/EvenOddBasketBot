@@ -8,7 +8,7 @@ from storage import load_sent_matches, save_sent_matches
 from database import add_signal
 import threading
 from web_server import run_web_server
-from notifications import create_start_message
+from notifications import create_start_message, create_error_message
 
 print("MAIN.PY ЗАГРУЖЕН")
 
@@ -22,7 +22,6 @@ def main():
 
     print("Бот запущен...")
     print("Render heartbeat: основной цикл main() запущен")
-
     send_telegram(create_start_message())
 
     while True:
@@ -35,6 +34,10 @@ def main():
             matches = get_matches()
         except Exception as error:
             print("Ошибка при получении матчей:", error)
+
+            # Отправляем сообщение об ошибке в Telegram
+            send_telegram(create_error_message(error))
+
             print("Ждём следующую проверку...")
             time.sleep(CHECK_INTERVAL)
             continue
