@@ -50,17 +50,29 @@ def check_signal_result(signal):
 
     print("Итоговый тотал:", final_total)
 
-    is_odd = final_total % 2 == 1
+    # =========================================================
+    # Считаем итоговый тотал матча
+    # =========================================================
+    final_total = match["home_score"] + match["away_score"]
 
+    # Записываем итоговый тотал в сигнал
     signal["final_total"] = final_total
 
-    if signal["prediction"] == PREDICTION_ODD and is_odd:
+    # =========================================================
+    # Проверяем результат стратегии
+    #
+    # Правило:
+    # если общий тотал матча нечётный — WIN
+    # если общий тотал матча чётный — LOSE
+    # =========================================================
+    if final_total % 2 == 1:
         signal["result"] = STATUS_WIN
         signal["roi"] = 0.9
     else:
         signal["result"] = STATUS_LOSE
         signal["roi"] = -1
 
+    # Матч больше не ждём
     signal["status"] = "finished"
 
     message = create_result_message(signal)
