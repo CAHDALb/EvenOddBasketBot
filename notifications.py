@@ -18,6 +18,16 @@ notifications.py
 
 from constants import STATUS_WIN
 
+def create_start_message():
+    """
+    Создаёт сообщение о запуске бота.
+    """
+
+    return (
+        "✅ EvenOddBasketBot запущен на сервере\n\n"
+        "🏀 Бот начал проверку LIVE-матчей.\n"
+        "⏱ Интервал проверки: 180 секунд."
+    )
 
 def create_result_message(signal):
     """

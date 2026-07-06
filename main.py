@@ -8,6 +8,7 @@ from storage import load_sent_matches, save_sent_matches
 from database import add_signal
 import threading
 from web_server import run_web_server
+from notifications import create_start_message
 
 print("MAIN.PY ЗАГРУЖЕН")
 
@@ -21,6 +22,8 @@ def main():
 
     print("Бот запущен...")
     print("Render heartbeat: основной цикл main() запущен")
+
+    send_telegram(create_start_message())
 
     while True:
 
