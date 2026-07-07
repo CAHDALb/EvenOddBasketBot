@@ -180,6 +180,7 @@ def add_signal(match):
         )
     )
 
+
     # Сохраняем изменения
     connection.commit()
 
@@ -187,6 +188,79 @@ def add_signal(match):
     connection.close()
 
     return True
+
+# ============================================================
+# Возвращает все сигналы со статусом waiting
+# ============================================================
+
+def get_waiting_signals():
+    """
+    Возвращает список сигналов,
+    которые ещё не проверены.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            home,
+            away,
+            match_url,
+            status
+        FROM signals
+        WHERE status = 'waiting'
+    """)
+
+    rows = cursor.fetchall()
+
+    connection.close()
+
+    signals = []
+
+    for row in rows:
+
+        signals.append({
+            "id": row[0],
+            "home_name": row[1],
+            "away_name": row[2],
+            "match_url": row[3],
+            "status": row[4]
+        })
+
+    return signals
+
+# ============================================================
+# Обновляет результат сигнала
+# ============================================================
+
+def update_signal_result(match_id, final_total, result, roi):
+    """
+    Записывает результат проверки сигнала.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        UPDATE signals
+        SET
+            final_total = ?,
+            result = ?,
+            roi = ?,
+            status = 'finished'
+        WHERE id = ?
+    """, (
+        final_total,
+        result,
+        roi,
+        match_id
+    ))
+
+    connection.commit()
+    connection.close()
+
 
 if __name__ == "__main__":
     create_tables()
