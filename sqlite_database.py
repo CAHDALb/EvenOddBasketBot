@@ -17,9 +17,15 @@ sqlite_database.py
 """
 
 import sqlite3
+import os
 
-# Название файла базы данных
-DB_NAME = "evenodd.db"
+# ============================================================
+# Путь к единственной базе данных проекта
+# ============================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_NAME = os.path.join(BASE_DIR, "evenodd.db")
 
 
 def get_connection():
