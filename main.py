@@ -6,6 +6,7 @@ from strategy import check_strategy
 from telegram_sender import send_telegram
 from storage import load_sent_matches, save_sent_matches
 from sqlite_database import create_tables, add_signal
+from results import check_all_waiting_signals
 import threading
 from web_server import run_web_server
 from notifications import create_start_message, create_error_message
@@ -121,6 +122,11 @@ def main():
                 else:
                     print("Ошибка Telegram:")
                     print(result)
+        # =====================================================
+        # Проверяем результаты ранее найденных сигналов
+        # =====================================================
+        print("\nПроверяем результаты завершённых матчей...")
+        check_all_waiting_signals()
 
         print(f"\nСледующая проверка через {CHECK_INTERVAL} секунд...")
         time.sleep(CHECK_INTERVAL)
