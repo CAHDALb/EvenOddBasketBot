@@ -1,88 +1,60 @@
-import json
-import os
-from datetime import datetime
+"""
+===========================================================
+EvenOddBasketBot
 
-DB_FILE = "signals.json"
+Файл:
+database.py
 
+Назначение:
+Единая точка сохранения сигналов.
 
-# Создает файл, если его нет
-def init_database():
-    if not os.path.exists(DB_FILE):
-        with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump([], f, ensure_ascii=False, indent=4)
+Во время миграции сигнал записывается:
+- в резервную SQLite;
+- в постоянную PostgreSQL Neon.
+===========================================================
+"""
 
-
-# Загружает все сигналы
-def load_signals():
-    init_database()
-
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+from sqlite_database import add_signal as sqlite_add_signal
+from postgres_database import add_signal as postgres_add_signal
 
 
-# Сохраняет список сигналов
-def save_signals(signals):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(signals, f, ensure_ascii=False, indent=4)
-
-
-# Проверяет, есть ли уже такой матч
-def signal_exists(match_id):
-    signals = load_signals()
-
-    for signal in signals:
-        if signal["id"] == match_id:
-            return True
-
-    return False
-
-
-# Добавляет новый сигнал
 def add_signal(match):
     """
-    Добавляет новый сигнал в signals.json.
-    Если такой матч уже есть, второй раз его не записывает.
+    Сохраняет сигнал одновременно в SQLite и PostgreSQL.
+
+    Ошибка одной базы не должна останавливать бота.
+    Возвращает True, если запись добавлена хотя бы в одну базу.
     """
 
-    # Загружаем все сохранённые сигналы
-    signals = load_signals()
+    sqlite_result = False
+    postgres_result = False
 
-    # Берём ID матча из нового формата parser.py
-    match_id = match["id"]
+    # =====================================================
+    # Резервная запись в SQLite
+    # =====================================================
+    try:
+        sqlite_result = sqlite_add_signal(match)
 
-    # Проверяем дубликат
-    if signal_exists(match_id):
-        return False
+        if sqlite_result:
+            print("Сигнал сохранён в SQLite.")
+        else:
+            print("Сигнал уже существует в SQLite.")
 
-    # Создаём запись сигнала
-    signal = {
-        "id": match_id,
-        "match_url": match["match_url"],
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    except Exception as error:
+        print("Ошибка записи сигнала в SQLite:", error)
 
-        "country": match.get("country"),
-        "league": match.get("league"),
+    # =====================================================
+    # Постоянная запись в PostgreSQL Neon
+    # =====================================================
+    try:
+        postgres_result = postgres_add_signal(match)
 
-        "home": match.get("home_name"),
-        "away": match.get("away_name"),
+        if postgres_result:
+            print("Сигнал сохранён в PostgreSQL.")
+        else:
+            print("Сигнал уже существует в PostgreSQL.")
 
-        "q1": match.get("q1_total"),
-        "q2": match.get("q2_total"),
-        "q3": match.get("q3_total"),
+    except Exception as error:
+        print("Ошибка записи сигнала в PostgreSQL:", error)
 
-        "signal_stage": "Q4",
-        "prediction": "odd",
-
-        "status": "waiting",
-        "final_total": None,
-        "result": None,
-        "roi": None
-    }
-
-    # Добавляем новый сигнал в список
-    signals.append(signal)
-
-    # Сохраняем обновлённый список
-    save_signals(signals)
-
-    return True
+    return sqlite_result or postgres_result

@@ -1,11 +1,12 @@
 import time
-
+from statistics import print_total_statistics
 from config import CHECK_INTERVAL
 from parser import get_matches
 from strategy import check_strategy
 from telegram_sender import send_telegram
 from storage import load_sent_matches, save_sent_matches
-from sqlite_database import create_tables, add_signal
+from database import add_signal
+from sqlite_database import create_tables
 from results import check_all_waiting_signals
 import threading
 from web_server import run_web_server
@@ -127,6 +128,9 @@ def main():
         # =====================================================
         print("\nПроверяем результаты завершённых матчей...")
         check_all_waiting_signals()
+
+        # Показываем текущее состояние базы в логах
+        print_total_statistics()
 
         print(f"\nСледующая проверка через {CHECK_INTERVAL} секунд...")
         time.sleep(CHECK_INTERVAL)
