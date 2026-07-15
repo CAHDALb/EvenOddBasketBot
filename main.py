@@ -1,5 +1,9 @@
 import time
-from analytics import build_signal_passport
+from analytics import (
+    build_signal_passport,
+    get_recent_statistics,
+    get_risk_indicator,
+)
 from statistics import print_total_statistics
 from config import CHECK_INTERVAL
 from parser import get_matches
@@ -101,6 +105,40 @@ def main():
                 league_stats = passport["league"]
                 type_stats = passport["match_type"]
 
+                # =====================================================
+                # Получаем последние результаты всей стратегии
+                # =====================================================
+                recent_stats = get_recent_statistics(limit=10)
+                risk = get_risk_indicator(recent_stats)
+
+                # Если результатов ещё нет
+                if recent_stats["total"] == 0:
+                    recent_history_text = "Пока нет завершённых сигналов."
+                    recent_summary_text = "WIN: 0 | LOSE: 0"
+                    streak_text = "Текущая серия: отсутствует"
+
+                else:
+                    recent_history_text = recent_stats["history_line"]
+
+                    recent_summary_text = (
+                        f"WIN: {recent_stats['wins']} из {recent_stats['total']}\n"
+                        f"Проходимость: {recent_stats['win_rate']:.2f}%"
+                    )
+
+                    streak = recent_stats["streak"]
+
+                    if streak["result"] == "win":
+                        streak_name = "WIN 🟢"
+                    elif streak["result"] == "lose":
+                        streak_name = "LOSE 🔴"
+                    else:
+                        streak_name = "отсутствует"
+
+                    streak_text = (
+                        f"Текущая серия: "
+                        f"{streak['length']} {streak_name}"
+                    )
+
                 type_names = {
                     "men": "👨 Мужские",
                     "women": "👩 Женские",
@@ -117,11 +155,13 @@ def main():
                 # =====================================================
                 message = (
                     "🚨 СИГНАЛ ПО СТРАТЕГИИ 🚨\n\n"
+
                     f"🌍 {match.get('country')}\n"
                     f"🏆 {match.get('league')}\n"
                     f"📂 {match_type_name}\n\n"
 
                     f"🏀 {home} - {away}\n\n"
+
                     f"{stage}\n\n"
 
                     f"Q1 = {q1}\n"
@@ -130,6 +170,17 @@ def main():
 
                     "✅ Все три четверти имеют одинаковую чётность.\n\n"
 
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "📈 ПОСЛЕДНИЕ РЕЗУЛЬТАТЫ\n\n"
+
+                    f"{recent_history_text}\n\n"
+                    f"{recent_summary_text}\n"
+                    f"{streak_text}\n\n"
+
+                    f"{risk['icon']} {risk['title']}\n"
+                    f"{risk['message']}\n\n"
+
+                    "━━━━━━━━━━━━━━━━━━━━\n"
                     "📊 ИСТОРИЯ СТРАТЕГИИ\n\n"
 
                     f"🌍 Страна: {country_stats['value']}\n"
@@ -146,6 +197,11 @@ def main():
                     f"Сигналов: {type_stats['total']}\n"
                     f"Проходимость: {type_stats['win_rate']:.2f}%\n"
                     f"ROI: {type_stats['roi']:+.2f}\n\n"
+
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "📚 SIGNAL SCORE\n\n"
+                    "Пока не рассчитан.\n"
+                    "Идёт накопление статистики.\n\n"
 
                     f"🆔 ID: {match['id']}\n"
                     f"🔗 {match_url}"
