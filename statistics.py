@@ -13,7 +13,7 @@ statistics.py
 ===========================================================
 """
 
-from sqlite_database import get_connection
+from postgres_database import get_connection
 
 
 def get_total_statistics():
@@ -137,6 +137,65 @@ def get_country_statistics():
 
     return statistics
 
+def get_league_statistics():
+    """
+    Возвращает статистику по лигам.
+
+    Для каждой лиги считает:
+    - количество завершённых сигналов;
+    - WIN;
+    - LOSE;
+    - процент прохода;
+    - суммарный ROI.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            league,
+            COUNT(*) AS total,
+            SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN result = 'lose' THEN 1 ELSE 0 END) AS loses,
+            COALESCE(SUM(roi), 0) AS roi
+        FROM signals
+        WHERE status = 'finished'
+        GROUP BY league
+        ORDER BY total DESC
+        """
+    )
+
+    rows = cursor.fetchall()
+    connection.close()
+
+    statistics = []
+
+    for league, total, wins, loses, roi in rows:
+
+        # Если название лиги отсутствует
+        league_name = league or "Неизвестная лига"
+
+        # Проходимость
+        if total > 0:
+            win_rate = wins / total * 100
+        else:
+            win_rate = 0
+
+        statistics.append(
+            {
+                "league": league_name,
+                "total": total,
+                "wins": wins,
+                "loses": loses,
+                "win_rate": win_rate,
+                "roi": roi,
+            }
+        )
+
+    return statistics
+
 def print_total_statistics():
     """
     Красиво выводит общую статистику в консоль.
@@ -173,6 +232,126 @@ def print_country_statistics():
 
     for item in countries:
         print(f"Страна         : {item['country']}")
+        print(f"Сигналов       : {item['total']}")
+        print(f"WIN            : {item['wins']}")
+        print(f"LOSE           : {item['loses']}")
+        print(f"Проходимость   : {item['win_rate']:.2f}%")
+        print(f"ROI            : {item['roi']:+.2f}")
+        print("-" * 55)
+
+    print("=" * 55)
+
+def print_league_statistics():
+    """
+    Красиво выводит статистику по лигам.
+    """
+
+    leagues = get_league_statistics()
+
+    print("=" * 55)
+    print("🏆 EvenOddBasketBot — статистика по лигам")
+    print("=" * 55)
+
+    if not leagues:
+        print("Пока нет завершённых сигналов.")
+        print("=" * 55)
+        return
+
+    for item in leagues:
+
+        print(f"Лига          : {item['league']}")
+        print(f"Сигналов      : {item['total']}")
+        print(f"WIN           : {item['wins']}")
+        print(f"LOSE          : {item['loses']}")
+        print(f"Проходимость  : {item['win_rate']:.2f}%")
+        print(f"ROI           : {item['roi']:+.2f}")
+
+        print("-" * 55)
+
+    print("=" * 55)
+
+def get_match_type_statistics():
+    """
+    Возвращает статистику по типам матчей:
+    men, women и youth.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            match_type,
+            COUNT(*) AS total,
+            SUM(CASE WHEN result = 'win' THEN 1 ELSE 0 END) AS wins,
+            SUM(CASE WHEN result = 'lose' THEN 1 ELSE 0 END) AS loses,
+            COALESCE(SUM(roi), 0) AS roi
+        FROM signals
+        WHERE status = 'finished'
+        GROUP BY match_type
+        ORDER BY total DESC
+        """
+    )
+
+    rows = cursor.fetchall()
+    connection.close()
+
+    result = []
+
+    for match_type, total, wins, loses, roi in rows:
+        wins = wins or 0
+        loses = loses or 0
+        finished = wins + loses
+
+        win_rate = (
+            wins / finished * 100
+            if finished > 0
+            else 0
+        )
+
+        result.append(
+            {
+                "match_type": match_type or "unknown",
+                "total": total,
+                "wins": wins,
+                "loses": loses,
+                "win_rate": win_rate,
+                "roi": roi,
+            }
+        )
+
+    return result
+def print_match_type_statistics():
+    """
+    Красиво выводит статистику по типам матчей.
+    """
+
+    type_names = {
+        "men": "👨 Мужские",
+        "women": "👩 Женские",
+        "youth": "👦 Молодёжные",
+        "unknown": "❓ Не определено",
+    }
+
+    items = get_match_type_statistics()
+
+    print("=" * 55)
+    print("🏀 EvenOddBasketBot — статистика по типам")
+    print("=" * 55)
+
+    if not items:
+        print("Пока нет завершённых сигналов.")
+        print("=" * 55)
+        return
+
+    for item in items:
+        name = type_names.get(
+            item["match_type"],
+            item["match_type"]
+        )
+
+        print(f"Категория      : {name}")
         print(f"Сигналов       : {item['total']}")
         print(f"WIN            : {item['wins']}")
         print(f"LOSE           : {item['loses']}")
