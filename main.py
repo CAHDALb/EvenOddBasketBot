@@ -1,4 +1,5 @@
 import time
+from analytics import build_signal_passport
 from statistics import print_total_statistics
 from config import CHECK_INTERVAL
 from parser import get_matches
@@ -92,18 +93,60 @@ def main():
                 match_url = match["match_url"]
 
                 # =====================================================
+                # Получаем историческую аналитику по сигналу
+                # =====================================================
+                passport = build_signal_passport(match)
+
+                country_stats = passport["country"]
+                league_stats = passport["league"]
+                type_stats = passport["match_type"]
+
+                type_names = {
+                    "men": "👨 Мужские",
+                    "women": "👩 Женские",
+                    "youth": "👦 Молодёжные",
+                }
+
+                match_type_name = type_names.get(
+                    type_stats["value"],
+                    type_stats["value"],
+                )
+
+                # =====================================================
                 # Формируем сообщение для Telegram
                 # =====================================================
                 message = (
                     "🚨 СИГНАЛ ПО СТРАТЕГИИ 🚨\n\n"
                     f"🌍 {match.get('country')}\n"
-                    f"🏆 {match.get('league')}\n\n"
+                    f"🏆 {match.get('league')}\n"
+                    f"📂 {match_type_name}\n\n"
+
                     f"🏀 {home} - {away}\n\n"
                     f"{stage}\n\n"
+
                     f"Q1 = {q1}\n"
                     f"Q2 = {q2}\n"
                     f"Q3 = {q3}\n\n"
-                    "✅ Все три четверти имеют одинаковую четность.\n\n"
+
+                    "✅ Все три четверти имеют одинаковую чётность.\n\n"
+
+                    "📊 ИСТОРИЯ СТРАТЕГИИ\n\n"
+
+                    f"🌍 Страна: {country_stats['value']}\n"
+                    f"Сигналов: {country_stats['total']}\n"
+                    f"Проходимость: {country_stats['win_rate']:.2f}%\n"
+                    f"ROI: {country_stats['roi']:+.2f}\n\n"
+
+                    f"🏆 Лига: {league_stats['value']}\n"
+                    f"Сигналов: {league_stats['total']}\n"
+                    f"Проходимость: {league_stats['win_rate']:.2f}%\n"
+                    f"ROI: {league_stats['roi']:+.2f}\n\n"
+
+                    f"📂 Категория: {match_type_name}\n"
+                    f"Сигналов: {type_stats['total']}\n"
+                    f"Проходимость: {type_stats['win_rate']:.2f}%\n"
+                    f"ROI: {type_stats['roi']:+.2f}\n\n"
+
                     f"🆔 ID: {match['id']}\n"
                     f"🔗 {match_url}"
                 )
