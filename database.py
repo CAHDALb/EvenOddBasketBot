@@ -22,6 +22,7 @@ from sqlite_database import (
 
 from postgres_database import (
     add_signal as postgres_add_signal,
+    get_waiting_signals as postgres_get_waiting_signals,
     update_signal_result as postgres_update_signal_result,
 )
 
@@ -70,13 +71,24 @@ def add_signal(match):
 
 def get_waiting_signals():
     """
-    Получает ожидающие сигналы.
+    Получает ожидающие сигналы из PostgreSQL.
 
-    Пока источником списка остаётся SQLite.
-    Позже переключим эту функцию на PostgreSQL.
+    PostgreSQL теперь является основным источником данных.
+    SQLite пока остаётся резервной копией.
     """
 
-    return sqlite_get_waiting_signals()
+    try:
+        return postgres_get_waiting_signals()
+
+    except Exception as error:
+        print(
+            "Ошибка чтения waiting-сигналов из PostgreSQL:",
+            error
+        )
+
+        print("Переходим на резервную SQLite.")
+
+        return sqlite_get_waiting_signals()
 
 
 def update_signal_result(match_id, final_total, result, roi):
