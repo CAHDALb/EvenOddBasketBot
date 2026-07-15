@@ -16,7 +16,7 @@ results.py
 
 from parser import get_match_by_id
 from constants import STATUS_WIN, STATUS_LOSE
-from sqlite_database import get_waiting_signals, update_signal_result
+from database import get_waiting_signals, update_signal_result
 from notifications import create_result_message
 from telegram_sender import send_telegram
 

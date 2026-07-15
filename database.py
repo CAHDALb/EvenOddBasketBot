@@ -6,31 +6,39 @@ EvenOddBasketBot
 database.py
 
 Назначение:
-Единая точка сохранения сигналов.
+Единая точка работы с базами данных.
 
-Во время миграции сигнал записывается:
-- в резервную SQLite;
-- в постоянную PostgreSQL Neon.
+Во время миграции:
+- SQLite остаётся резервной базой;
+- PostgreSQL Neon является постоянной базой.
 ===========================================================
 """
 
-from sqlite_database import add_signal as sqlite_add_signal
-from postgres_database import add_signal as postgres_add_signal
+from sqlite_database import (
+    add_signal as sqlite_add_signal,
+    get_waiting_signals as sqlite_get_waiting_signals,
+    update_signal_result as sqlite_update_signal_result,
+)
+
+from postgres_database import (
+    add_signal as postgres_add_signal,
+    update_signal_result as postgres_update_signal_result,
+)
 
 
 def add_signal(match):
     """
-    Сохраняет сигнал одновременно в SQLite и PostgreSQL.
+    Сохраняет новый сигнал одновременно
+    в SQLite и PostgreSQL.
 
-    Ошибка одной базы не должна останавливать бота.
-    Возвращает True, если запись добавлена хотя бы в одну базу.
+    Ошибка одной базы не должна остановить бота.
     """
 
     sqlite_result = False
     postgres_result = False
 
     # =====================================================
-    # Резервная запись в SQLite
+    # Сохраняем резервную копию в SQLite
     # =====================================================
     try:
         sqlite_result = sqlite_add_signal(match)
@@ -44,7 +52,7 @@ def add_signal(match):
         print("Ошибка записи сигнала в SQLite:", error)
 
     # =====================================================
-    # Постоянная запись в PostgreSQL Neon
+    # Сохраняем постоянную копию в PostgreSQL
     # =====================================================
     try:
         postgres_result = postgres_add_signal(match)
@@ -56,5 +64,67 @@ def add_signal(match):
 
     except Exception as error:
         print("Ошибка записи сигнала в PostgreSQL:", error)
+
+    return sqlite_result or postgres_result
+
+
+def get_waiting_signals():
+    """
+    Получает ожидающие сигналы.
+
+    Пока источником списка остаётся SQLite.
+    Позже переключим эту функцию на PostgreSQL.
+    """
+
+    return sqlite_get_waiting_signals()
+
+
+def update_signal_result(match_id, final_total, result, roi):
+    """
+    Обновляет результат сигнала одновременно
+    в SQLite и PostgreSQL.
+    """
+
+    sqlite_result = False
+    postgres_result = False
+
+    # =====================================================
+    # Обновляем резервную SQLite
+    # =====================================================
+    try:
+        sqlite_update_signal_result(
+            match_id=match_id,
+            final_total=final_total,
+            result=result,
+            roi=roi,
+        )
+
+        sqlite_result = True
+        print("Результат обновлён в SQLite.")
+
+    except Exception as error:
+        print("Ошибка обновления результата в SQLite:", error)
+
+    # =====================================================
+    # Обновляем постоянную PostgreSQL
+    # =====================================================
+    try:
+        postgres_result = postgres_update_signal_result(
+            match_id=match_id,
+            final_total=final_total,
+            result=result,
+            roi=roi,
+        )
+
+        if postgres_result:
+            print("Результат обновлён в PostgreSQL.")
+        else:
+            print(
+                "Сигнал не найден в PostgreSQL:",
+                match_id,
+            )
+
+    except Exception as error:
+        print("Ошибка обновления результата в PostgreSQL:", error)
 
     return sqlite_result or postgres_result

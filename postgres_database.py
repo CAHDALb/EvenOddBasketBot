@@ -164,6 +164,82 @@ def add_signal(match):
 
     return True
 
+def get_waiting_signals():
+    """
+    Возвращает из PostgreSQL все сигналы,
+    которые ещё ожидают результата.
+    """
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    home,
+                    away,
+                    match_url,
+                    status
+                FROM signals
+                WHERE status = 'waiting'
+                ORDER BY signal_datetime
+                """
+            )
+
+            rows = cursor.fetchall()
+
+    signals = []
+
+    for row in rows:
+        signals.append(
+            {
+                "id": row[0],
+                "home_name": row[1],
+                "away_name": row[2],
+                "match_url": row[3],
+                "status": row[4],
+            }
+        )
+
+    return signals
+
+
+def update_signal_result(match_id, final_total, result, roi):
+    """
+    Записывает итоговый результат сигнала в PostgreSQL.
+
+    Обновляет:
+    - итоговый тотал;
+    - WIN или LOSE;
+    - ROI;
+    - статус finished.
+    """
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE signals
+                SET
+                    final_total = %s,
+                    result = %s,
+                    roi = %s,
+                    status = 'finished'
+                WHERE id = %s
+                """,
+                (
+                    final_total,
+                    result,
+                    roi,
+                    match_id,
+                ),
+            )
+
+            # rowcount показывает, сколько записей обновлено
+            updated_rows = cursor.rowcount
+
+    return updated_rows > 0
+
 def test_connection():
     """
     Проверяет подключение к Neon.

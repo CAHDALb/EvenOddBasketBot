@@ -116,17 +116,24 @@ def normalize_match(raw_match):
     }
 
 
-def get_matches():
+def get_matches_from_feed(feed):
     """
-    Получает матчи Flashscore и возвращает их в понятном формате.
+    Получает матчи из указанного Flashscore feed.
+
+    Примеры:
+    f_3_0_4_ru_1   — текущие матчи;
+    f_3_-1_3_ru_1  — матчи за вчера.
     """
 
-    url = f"https://local-ruua.flashscore.ninja/32/x/feed/{FEED}"
+    url = f"https://local-ruua.flashscore.ninja/32/x/feed/{feed}"
 
     response = requests.get(
         url=url,
-        headers=HEADERS
+        headers=HEADERS,
+        timeout=20
     )
+
+    response.raise_for_status()
 
     data = response.text.split("¬")
 
@@ -141,8 +148,7 @@ def get_matches():
         if "÷" not in item:
             continue
 
-        key = item.split("÷")[0]
-        value = item.split("÷")[-1]
+        key, _, value = item.partition("÷")
 
         # Новый блок лиги
         if key == "~ZA":
@@ -168,7 +174,7 @@ def get_matches():
 
             continue
 
-        # Поля текущего матча
+        # Остальные поля текущего матча
         if current_match is not None:
             current_match[key] = value
 
@@ -176,7 +182,6 @@ def get_matches():
     if current_match:
         raw_matches.append(current_match)
 
-    # Переводим сырые матчи в понятный формат
     matches = []
 
     for raw_match in raw_matches:
@@ -187,26 +192,105 @@ def get_matches():
 
     return matches
 
+
+def get_matches():
+    """
+    Получает текущие матчи из основного feed,
+    указанного в config.py.
+    """
+
+    return get_matches_from_feed(FEED)
+
+
+    # Создаём словарь одного матча
+    raw_match = {
+        "~AA": match_id,
+        "country": None,
+        "league": None,
+    }
+
+    # Разбираем ответ Flashscore
+    for item in response.text.split("¬"):
+
+        if "÷" not in item:
+            continue
+
+        # Делим только по первому символу ÷
+        key, _, value = item.partition("÷")
+
+        # Название турнира
+        if key == "~ZA":
+            raw_match["league"] = value
+            continue
+
+        # Страна турнира
+        if key == "ZY":
+            raw_match["country"] = value
+            continue
+
+        # Сохраняем остальные поля матча
+        raw_match[key] = value
+
+    match = normalize_match(raw_match)
+
+    # Защита от пустого или неправильного ответа
+    if (
+        match["home_name"] is None
+        and match["away_name"] is None
+        and match["home_score"] is None
+        and match["away_score"] is None
+    ):
+        return None
+
+    return match
+
 def get_match_by_id(match_id):
     """
-    Ищет матч по его ID.
+    Ищет матч по ID в нескольких дневных feed.
 
-    Зачем нужна функция:
-    - results.py будет использовать её, чтобы проверить,
-      закончился ли матч;
-    - если матч найден, возвращаем его данные;
-    - если не найден, возвращаем None.
+    Порядок поиска:
+    1. Текущий основной feed.
+    2. Все матчи за текущий день.
+    3. Матчи за вчера.
+    4. Матчи за позавчера.
     """
 
-    # Получаем все матчи из Flashscore
-    matches = get_matches()
+    feeds_to_check = [
+        FEED,
+        "f_3_0_3_ru_1",
+        "f_3_-1_3_ru_1",
+        "f_3_-2_3_ru_1",
+    ]
 
-    # Перебираем все матчи
-    for match in matches:
+    checked_feeds = set()
 
-        # Если ID совпал — возвращаем этот матч
-        if match["id"] == match_id:
-            return match
+    for feed in feeds_to_check:
 
-    # Если матч не найден
+        # Не проверяем один и тот же feed дважды
+        if feed in checked_feeds:
+            continue
+
+        checked_feeds.add(feed)
+
+        try:
+            matches = get_matches_from_feed(feed)
+
+        except requests.RequestException as error:
+            print(
+                f"Ошибка получения feed {feed}:",
+                error
+            )
+            continue
+
+        for match in matches:
+            if match["id"] == match_id:
+                print("Матч найден в feed:", feed)
+                return match
+
+    print(
+        "Матч не найден ни в текущем, "
+        "ни в архивных feed:",
+        match_id
+    )
+
     return None
