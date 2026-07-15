@@ -141,6 +141,200 @@ def build_signal_passport(match):
         "match_type": get_match_type_info(match_type),
     }
 
+def get_last_results(limit=10):
+    """
+    Возвращает последние завершённые результаты стратегии.
+
+    Самый свежий результат находится первым.
+
+    Пример:
+    ["win", "lose", "win"]
+    """
+
+    if limit <= 0:
+        return []
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT result
+                FROM signals
+                WHERE status = 'finished'
+                  AND result IN ('win', 'lose')
+                ORDER BY signal_datetime DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+
+            rows = cursor.fetchall()
+
+    return [row[0] for row in rows]
+
+
+def get_current_streak(results=None):
+    """
+    Определяет текущую серию WIN или LOSE.
+
+    Важно:
+    список должен начинаться с самого свежего результата.
+
+    Возвращает, например:
+
+    {
+        "result": "win",
+        "length": 3
+    }
+    """
+
+    if results is None:
+        results = get_last_results(limit=100)
+
+    if not results:
+        return {
+            "result": None,
+            "length": 0,
+        }
+
+    current_result = results[0]
+    streak_length = 0
+
+    for result in results:
+        if result == current_result:
+            streak_length += 1
+        else:
+            break
+
+    return {
+        "result": current_result,
+        "length": streak_length,
+    }
+
+
+def get_recent_statistics(limit=10):
+    """
+    Считает статистику последних завершённых сигналов.
+
+    Возвращает:
+    - список результатов;
+    - количество WIN;
+    - количество LOSE;
+    - проходимость;
+    - текущую серию;
+    - строку с цветными значками.
+    """
+
+    results = get_last_results(limit=limit)
+
+    wins = results.count("win")
+    loses = results.count("lose")
+    total = len(results)
+
+    if total > 0:
+        win_rate = wins / total * 100
+    else:
+        win_rate = 0
+
+    streak = get_current_streak(results)
+
+    result_icons = {
+        "win": "🟢",
+        "lose": "🔴",
+    }
+
+    # В базе результаты идут от новых к старым.
+    # Для Telegram разворачиваем их:
+    # слева старые, справа самый свежий.
+    history_line = "".join(
+        result_icons.get(result, "⚪")
+        for result in reversed(results)
+    )
+
+    return {
+        "limit": limit,
+        "results": results,
+        "total": total,
+        "wins": wins,
+        "loses": loses,
+        "win_rate": win_rate,
+        "streak": streak,
+        "history_line": history_line,
+    }
+
+
+def get_risk_indicator(recent_statistics=None):
+    """
+    Возвращает информационный индикатор осторожности.
+
+    Индикатор не является рекомендацией по размеру ставки
+    и не гарантирует результат следующего сигнала.
+    """
+
+    if recent_statistics is None:
+        recent_statistics = get_recent_statistics(limit=10)
+
+    total = recent_statistics["total"]
+    wins = recent_statistics["wins"]
+
+    # Пока нет даже десяти завершённых сигналов
+    if total < 10:
+        return {
+            "level": "high_uncertainty",
+            "icon": "⚪",
+            "title": "Недостаточно данных",
+            "message": (
+                f"Завершённых сигналов: {total} из 10. "
+                "История пока слишком короткая для оценки текущей формы."
+            ),
+        }
+
+    # От 0 до 4 побед из последних 10
+    if wins <= 4:
+        return {
+            "level": "caution",
+            "icon": "🔴",
+            "title": "Повышенная осторожность",
+            "message": (
+                f"Последние результаты: {wins} WIN из 10. "
+                "Текущая серия стратегии выглядит слабой."
+            ),
+        }
+
+    # Ровно 5 побед из последних 10
+    if wins == 5:
+        return {
+            "level": "neutral",
+            "icon": "🟡",
+            "title": "Нейтральная форма",
+            "message": (
+                "Последние результаты: 5 WIN из 10. "
+                "Явного преимущества текущая серия не показывает."
+            ),
+        }
+
+    # 6 побед из последних 10
+    if wins == 6:
+        return {
+            "level": "positive_caution",
+            "icon": "🟡",
+            "title": "Умеренно положительная форма",
+            "message": (
+                "Последние результаты: 6 WIN из 10. "
+                "Форма положительная, но выборка остаётся небольшой."
+            ),
+        }
+
+    # 7–10 побед из последних 10
+    return {
+        "level": "positive",
+        "icon": "🟢",
+        "title": "Положительная текущая форма",
+        "message": (
+            f"Последние результаты: {wins} WIN из 10. "
+            "Это хорошая короткая серия, но не гарантия следующего WIN."
+        ),
+    }
 
 def calculate_confidence(passport):
     """
