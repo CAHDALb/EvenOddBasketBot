@@ -10,7 +10,7 @@ dashboard.py
 со статистикой из PostgreSQL Neon.
 ===========================================================
 """
-
+from financial import VirtualFund, BANK_MODELS
 from html import escape
 
 from analytics import get_recent_statistics, get_risk_indicator
@@ -172,6 +172,86 @@ def build_match_type_cards(items):
 
     return "".join(cards)
 
+def format_money(value):
+    """
+    Форматирует денежную сумму.
+    """
+
+    return f"{float(value):,.0f} ₽".replace(",", " ")
+
+
+def build_fund_cards(funds):
+    """
+    Формирует карточки виртуальных фондов.
+    """
+
+    cards = []
+
+    for fund in funds:
+        status = fund.get_status()
+
+        cards.append(
+            f"""
+            <div class="fund-card">
+                <div class="fund-header">
+                    <h3>{escape(status["model_title"])}</h3>
+                    <span class="fund-percent">
+                        Ставка: {status["stake_percent"]:.2f}%
+                    </span>
+                </div>
+
+                <p class="fund-description">
+                    {escape(status["description"])}
+                </p>
+
+                <div class="fund-values">
+                    <p>
+                        <strong>Начальный банк:</strong>
+                        {format_money(status["initial_bank"])}
+                    </p>
+
+                    <p>
+                        <strong>Текущий банк:</strong>
+                        {format_money(status["current_bank"])}
+                    </p>
+
+                    <p>
+                        <strong>Прибыль:</strong>
+                        {format_money(status["profit"])}
+                    </p>
+                </div>
+
+                <div class="progress-info">
+                    <span>
+                        Прогресс:
+                        {status["completed_signals"]}
+                        /
+                        {status["target_signals"]}
+                    </span>
+
+                    <span>
+                        {status["progress_percent"]:.0f}%
+                    </span>
+                </div>
+
+                <div class="progress-bar">
+                    <div
+                        class="progress-fill"
+                        style="
+                            width:
+                            {status["progress_percent"]:.2f}%;
+                        "
+                    ></div>
+                </div>
+
+                <div class="fund-status">
+                    🔒 {escape(status["status_text"])}
+                </div>
+            </div>
+            """
+        )
+
+    return "".join(cards)
 
 def build_dashboard_html():
     """
@@ -182,6 +262,19 @@ def build_dashboard_html():
     countries = get_country_statistics()
     leagues = get_league_statistics()
     match_types = get_match_type_statistics()
+
+    # Количество завершённых сигналов
+    completed_signals = total["wins"] + total["loses"]
+
+    # Создаём три виртуальные модели банка
+    funds = [
+        VirtualFund(
+            model_name=model_name,
+            completed_signals=completed_signals,
+            initial_bank=100_000,
+        )
+        for model_name in BANK_MODELS
+    ]
 
     recent = get_recent_statistics(limit=10)
     risk = get_risk_indicator(recent)
@@ -201,6 +294,8 @@ def build_dashboard_html():
     league_rows = build_league_rows(leagues)
     match_type_cards = build_match_type_cards(match_types)
 
+    fund_cards = build_fund_cards(funds)
+
     return f"""
 <!DOCTYPE html>
 <html lang="ru">
@@ -217,165 +312,10 @@ def build_dashboard_html():
 
     <title>EvenOddBasketBot Mission Control</title>
 
-    <style>
-        * {{
-            box-sizing: border-box;
-        }}
-
-        body {{
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: #10131a;
-            color: #f4f4f4;
-        }}
-
-        .container {{
-            width: min(1200px, 94%);
-            margin: 0 auto;
-            padding: 30px 0 60px;
-        }}
-
-        .header {{
-            text-align: center;
-            margin-bottom: 30px;
-        }}
-
-        .header h1 {{
-            margin-bottom: 8px;
-            font-size: 34px;
-        }}
-
-        .header p {{
-            margin: 0;
-            color: #aeb7c5;
-        }}
-
-        .status {{
-            display: inline-block;
-            margin-top: 14px;
-            padding: 8px 14px;
-            border-radius: 20px;
-            background: #153b2b;
-            color: #63e6a1;
-            font-weight: bold;
-        }}
-
-        .cards {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(170px, 1fr));
-            gap: 14px;
-            margin-bottom: 26px;
-        }}
-
-        .card,
-        .section,
-        .type-card {{
-            background: #1b202b;
-            border: 1px solid #2c3442;
-            border-radius: 14px;
-        }}
-
-        .card {{
-            padding: 20px;
-            text-align: center;
-        }}
-
-        .card .value {{
-            display: block;
-            margin-top: 8px;
-            font-size: 30px;
-            font-weight: bold;
-        }}
-
-        .card .label {{
-            color: #aeb7c5;
-        }}
-
-        .section {{
-            padding: 22px;
-            margin-bottom: 24px;
-        }}
-
-        .section h2 {{
-            margin-top: 0;
-        }}
-
-        .recent-line {{
-            font-size: 31px;
-            letter-spacing: 5px;
-            overflow-wrap: anywhere;
-        }}
-
-        .risk {{
-            margin-top: 16px;
-            padding: 14px;
-            background: #222938;
-            border-radius: 10px;
-        }}
-
-        .type-grid {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-        }}
-
-        .type-card {{
-            padding: 18px;
-        }}
-
-        .type-card h3 {{
-            margin-top: 0;
-        }}
-
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 760px;
-        }}
-
-        th,
-        td {{
-            padding: 11px;
-            border-bottom: 1px solid #303847;
-            text-align: left;
-        }}
-
-        th {{
-            color: #aeb7c5;
-        }}
-
-        .table-wrapper {{
-            overflow-x: auto;
-        }}
-
-        .footer {{
-            text-align: center;
-            margin-top: 30px;
-            color: #7f8998;
-            font-size: 14px;
-        }}
-
-        @media (max-width: 600px) {{
-            .header h1 {{
-                font-size: 27px;
-            }}
-
-            .container {{
-                width: 96%;
-            }}
-
-            .section {{
-                padding: 16px;
-            }}
-
-            .recent-line {{
-                font-size: 25px;
-            }}
-        }}
-    </style>
+    <link
+    rel="stylesheet"
+    href="/static/styles.css"
+    >
 </head>
 
 <body>
@@ -450,11 +390,25 @@ def build_dashboard_html():
             </div>
         </section>
 
-        <section class="section">
+                <section class="section">
             <h2>📂 Типы матчей</h2>
 
             <div class="type-grid">
                 {match_type_cards}
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>💼 EvenOdd Strategy Fund</h2>
+
+            <p class="section-description">
+                Стартовый виртуальный капитал каждой модели:
+                100 000 ₽. Фонды автоматически активируются
+                после накопления 100 завершённых сигналов.
+            </p>
+
+            <div class="fund-grid">
+                {fund_cards}
             </div>
         </section>
 

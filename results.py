@@ -23,7 +23,7 @@ from telegram_sender import send_telegram
 
 def check_signal_result(signal):
     """
-    Проверяет один сигнал из SQLite.
+    Проверяет один ожидающий сигнал.
     """
 
     match_id = signal["id"]
@@ -62,34 +62,49 @@ def check_signal_result(signal):
         result = STATUS_LOSE
         roi = -1
 
-    # Обновляем результат в SQLite
-    update_signal_result(
+    # =========================================================
+    # Сохраняем результат в базах
+    # =========================================================
+    updated = update_signal_result(
         match_id=match_id,
         final_total=final_total,
         result=result,
-        roi=roi
+        roi=roi,
     )
 
+    if not updated:
+        print("Не удалось сохранить результат в базу.")
+        return
+
+    # =========================================================
     # Готовим данные для сообщения
+    # =========================================================
     signal_for_message = {
         "id": match_id,
         "home": signal["home_name"],
         "away": signal["away_name"],
         "final_total": final_total,
         "result": result,
-        "roi": roi
+        "roi": roi,
     }
 
-    # Отправляем результат в Telegram
     message = create_result_message(signal_for_message)
-    send_telegram(message)
 
-    print("Результат отправлен в Telegram")
+    # =========================================================
+    # Отправляем результат в Telegram
+    # =========================================================
+    telegram_result = send_telegram(message)
+
+    if telegram_result.get("ok"):
+        print("Результат отправлен в Telegram")
+    else:
+        print("Ошибка отправки результата:")
+        print(telegram_result)
 
 
 def check_all_waiting_signals():
     """
-    Проверяет все сигналы со статусом waiting из SQLite.
+    Проверяет все сигналы со статусом waiting.
     """
 
     waiting_signals = get_waiting_signals()

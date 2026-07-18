@@ -10,12 +10,14 @@ web_server.py
 и показывает Mission Control.
 ===========================================================
 """
-
+from pathlib import Path
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from dashboard import build_dashboard_html, build_error_html
 
+PROJECT_DIR = Path(__file__).resolve().parent
+STATIC_DIR = PROJECT_DIR / "dashboard_static"
 
 class DashboardHandler(BaseHTTPRequestHandler):
     """
@@ -60,6 +62,34 @@ class DashboardHandler(BaseHTTPRequestHandler):
         """
         Показывает Mission Control.
         """
+        # Отдаём CSS-файл Dashboard
+        if self.path == "/static/styles.css":
+            css_path = STATIC_DIR / "styles.css"
+
+            try:
+                body = css_path.read_bytes()
+
+                self.send_response(200)
+                self.send_header(
+                    "Content-Type",
+                    "text/css; charset=utf-8",
+                )
+                self.send_header(
+                    "Content-Length",
+                    str(len(body)),
+                )
+                self.send_header(
+                    "Cache-Control",
+                    "no-store",
+                )
+                self.end_headers()
+                self.send_body(body)
+
+            except FileNotFoundError:
+                self.send_response(404)
+                self.end_headers()
+
+            return
         # Браузер автоматически запрашивает иконку сайта.
         # Пока отдельной иконки нет, возвращаем пустой ответ.
         if self.path == "/favicon.ico":

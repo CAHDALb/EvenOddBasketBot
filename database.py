@@ -38,11 +38,18 @@ def add_signal(match):
     sqlite_result = False
     postgres_result = False
 
+    # Показывают, удалось ли нормально обратиться к базе.
+    # Дубликат сигнала тоже считается успешной операцией:
+    # база работает, а запись уже сохранена.
+    sqlite_available = False
+    postgres_available = False
+
     # =====================================================
     # Сохраняем резервную копию в SQLite
     # =====================================================
     try:
         sqlite_result = sqlite_add_signal(match)
+        sqlite_available = True
 
         if sqlite_result:
             print("Сигнал сохранён в SQLite.")
@@ -57,6 +64,7 @@ def add_signal(match):
     # =====================================================
     try:
         postgres_result = postgres_add_signal(match)
+        postgres_available = True
 
         if postgres_result:
             print("Сигнал сохранён в PostgreSQL.")
@@ -66,7 +74,9 @@ def add_signal(match):
     except Exception as error:
         print("Ошибка записи сигнала в PostgreSQL:", error)
 
-    return sqlite_result or postgres_result
+    # True означает, что хотя бы одна база успешно обработала запрос.
+    # Это может быть как новая запись, так и уже существующий сигнал.
+    return sqlite_available or postgres_available
 
 
 def get_waiting_signals():

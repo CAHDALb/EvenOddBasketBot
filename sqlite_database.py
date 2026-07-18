@@ -18,7 +18,7 @@ sqlite_database.py
 
 import sqlite3
 import os
-
+from match_classifier import detect_match_type
 # ============================================================
 # Путь к единственной базе данных проекта
 # ============================================================
@@ -39,20 +39,38 @@ def get_connection():
     connection = sqlite3.connect(DB_NAME)
     return connection
 
+def add_column_if_missing(cursor, table_name, column_name, column_type):
+    """
+    Добавляет новый столбец в существующую таблицу,
+    только если такого столбца ещё нет.
+    """
+
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if column_name not in columns:
+        cursor.execute(
+            f"ALTER TABLE {table_name} "
+            f"ADD COLUMN {column_name} {column_type}"
+        )
 
 def create_tables():
     """
     Создаёт таблицу signals, если её ещё нет.
     """
 
+    # Подключаемся к базе данных
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("""
+    # Создаём таблицу signals
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS signals (
             id TEXT PRIMARY KEY,
 
             strategy TEXT,
+            match_type TEXT,
 
             country TEXT,
             league TEXT,
@@ -69,7 +87,6 @@ def create_tables():
             q3 INTEGER,
 
             prediction TEXT,
-
             status TEXT,
 
             final_total INTEGER,
@@ -78,9 +95,22 @@ def create_tables():
 
             match_url TEXT
         )
-    """)
+        """
+    )
 
+    # Если таблица была создана раньше,
+    # добавляем в неё новый столбец match_type
+    add_column_if_missing(
+        cursor=cursor,
+        table_name="signals",
+        column_name="match_type",
+        column_type="TEXT"
+    )
+
+    # Сохраняем изменения
     connection.commit()
+
+    # Закрываем соединение
     connection.close()
 
 # =========================================================
@@ -146,6 +176,7 @@ def add_signal(match):
         INSERT INTO signals (
             id,
             strategy,
+            match_type,
             country,
             league,
             home,
@@ -163,11 +194,12 @@ def add_signal(match):
             roi,
             match_url
         )
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             match_id,
             "odd_total",
+            detect_match_type(match),
             match.get("country"),
             match.get("league"),
             match.get("home_name"),
