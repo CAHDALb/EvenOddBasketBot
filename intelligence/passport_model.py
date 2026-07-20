@@ -67,8 +67,11 @@ def create_passport() -> dict:
         # Уровень доверия к оценке от 0 до 100%
         "confidence": None,
 
-        # Уровень надёжности:
-        # insufficient, bronze, silver или gold
+        # Устойчивость стратегии по истории результатов
+        "stability": None,
+
+        # Уровень исторической оценки Signal Score:
+        # insufficient, low, medium, good или strong
         "level": None,
 
         # Итоговая рекомендация аналитической системы
@@ -94,6 +97,24 @@ def create_passport() -> dict:
 
             # Название программы, создавшей паспорт
             "generator": PASSPORT_GENERATOR,
+
+            # Подробный анализ Signal Score
+            "signal_score_analysis": {},
+
+            # Подробный анализ Confidence
+            "confidence_analysis": {},
+
+            # Подробный анализ Stability
+            "stability_analysis": {},
+
+            # Подробный анализ Recommendation
+            "recommendation_analysis": {},
+
+            # Информация о матче
+            "match": {},
+
+            # Время окончательной сборки паспорта
+            "built_at": None,
         },
     }
 

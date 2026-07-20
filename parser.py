@@ -75,7 +75,16 @@ def normalize_match(raw_match):
     ac = raw_match.get("AC")
 
     live = ab == "2"
-    finished = ab == "3" and ac == "3"
+
+    # Матч считаем завершённым, когда Flashscore пометил его
+    # как законченный и в feed присутствует итоговый счёт.
+    # Это поддерживает как обычное окончание матча, так и овертайм.
+    # Перенесённые/отменённые матчи без AG/AH завершёнными не считаются.
+    finished = (
+        ab == "3"
+        and home_score is not None
+        and away_score is not None
+    )
 
     return {
         "id": match_id,
