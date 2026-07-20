@@ -18,6 +18,7 @@ import time
 
 import requests
 
+from admin_commands import handle_admin_command, is_admin_command
 from config import BOT_TOKEN, TELEGRAM_POLL_TIMEOUT
 from telegram_sender import send_to_chat
 from telegram_users import (
@@ -95,7 +96,9 @@ def _handle_update(update):
     if telegram_id is None or chat.get("type") != "private":
         return
 
-    command = text.split()[0].split("@")[0].lower()
+    parts = text.split()
+    command = parts[0].split("@")[0].lower()
+    arguments = parts[1:]
 
     if command == "/start":
         user = register_user(
@@ -111,21 +114,35 @@ def _handle_update(update):
         )
         return
 
+    # Для остальных команд пользователь также должен быть в базе.
+    user = get_user(telegram_id)
+
+    if user is None:
+        user = register_user(
+            telegram_id=telegram_id,
+            first_name=sender.get("first_name"),
+            username=sender.get("username"),
+            language_code=sender.get("language_code"),
+        )
+
     if command in ("/status", "/myid"):
-        user = get_user(telegram_id)
-
-        if user is None:
-            user = register_user(
-                telegram_id=telegram_id,
-                first_name=sender.get("first_name"),
-                username=sender.get("username"),
-                language_code=sender.get("language_code"),
-            )
-
         send_to_chat(
             telegram_id,
             _create_status_reply(user),
         )
+        return
+
+    if is_admin_command(command):
+        send_to_chat(
+            telegram_id,
+            handle_admin_command(command, arguments, user),
+        )
+        return
+
+    send_to_chat(
+        telegram_id,
+        "Неизвестная команда. Отправьте /start или /status.",
+    )
 
 
 def _create_start_reply(user):

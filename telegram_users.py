@@ -237,6 +237,95 @@ def deactivate_user(telegram_id):
             )
 
 
+
+def get_user_statistics():
+    """Возвращает общую статистику пользователей для команды /users."""
+
+    _refresh_all_limits()
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE tariff = 'admin') AS admin,
+                    COUNT(*) FILTER (WHERE tariff = 'premium') AS premium,
+                    COUNT(*) FILTER (WHERE tariff = 'free') AS free,
+                    COUNT(*) FILTER (WHERE is_active = FALSE) AS blocked,
+                    COUNT(*) FILTER (
+                        WHERE created_at >= CURRENT_DATE
+                    ) AS today,
+                    COUNT(*) FILTER (
+                        WHERE created_at >= NOW() - INTERVAL '7 days'
+                    ) AS last_7_days,
+                    COUNT(*) FILTER (
+                        WHERE created_at >= NOW() - INTERVAL '30 days'
+                    ) AS last_30_days
+                FROM telegram_users
+                """
+            )
+
+            row = cursor.fetchone()
+
+    return {
+        "total": int(row[0] or 0),
+        "admin": int(row[1] or 0),
+        "premium": int(row[2] or 0),
+        "free": int(row[3] or 0),
+        "blocked": int(row[4] or 0),
+        "today": int(row[5] or 0),
+        "last_7_days": int(row[6] or 0),
+        "last_30_days": int(row[7] or 0),
+    }
+
+
+def set_user_tariff(telegram_id, tariff, premium_until=None):
+    """Меняет тариф пользователя и при необходимости срок Premium."""
+
+    tariff = str(tariff).lower().strip()
+
+    if tariff not in {"free", "premium", "admin"}:
+        raise ValueError("Неизвестный тариф пользователя.")
+
+    if tariff != "premium":
+        premium_until = None
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE telegram_users
+                SET
+                    tariff = %s,
+                    premium_until = %s,
+                    updated_at = NOW()
+                WHERE telegram_id = %s
+                """,
+                (tariff, premium_until, int(telegram_id)),
+            )
+
+            return cursor.rowcount > 0
+
+
+def set_user_active(telegram_id, is_active):
+    """Блокирует пользователя или возвращает ему доступ."""
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE telegram_users
+                SET
+                    is_active = %s,
+                    updated_at = NOW()
+                WHERE telegram_id = %s
+                """,
+                (bool(is_active), int(telegram_id)),
+            )
+
+            return cursor.rowcount > 0
+
 def get_remaining_free_signals(user):
     """Считает, сколько бесплатных сигналов осталось сегодня."""
 
