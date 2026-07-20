@@ -280,6 +280,75 @@ def get_user_statistics():
     }
 
 
+def get_users_page(page=1, page_size=10):
+    """
+    Возвращает одну страницу пользователей для команды /users.
+
+    Пользователи сортируются так:
+    1. ADMIN;
+    2. PREMIUM;
+    3. FREE;
+    4. внутри тарифа — по дате регистрации.
+    """
+
+    _refresh_all_limits()
+
+    try:
+        page = int(page)
+        page_size = int(page_size)
+    except (TypeError, ValueError):
+        page = 1
+        page_size = 10
+
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 50)
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM telegram_users")
+            total = int(cursor.fetchone()[0] or 0)
+
+            pages = max((total + page_size - 1) // page_size, 1)
+            page = min(page, pages)
+            offset = (page - 1) * page_size
+
+            cursor.execute(
+                """
+                SELECT
+                    telegram_id,
+                    first_name,
+                    username,
+                    tariff,
+                    signals_today,
+                    last_reset,
+                    premium_until,
+                    is_active,
+                    created_at
+                FROM telegram_users
+                ORDER BY
+                    CASE tariff
+                        WHEN 'admin' THEN 1
+                        WHEN 'premium' THEN 2
+                        ELSE 3
+                    END,
+                    created_at,
+                    telegram_id
+                LIMIT %s OFFSET %s
+                """,
+                (page_size, offset),
+            )
+
+            rows = cursor.fetchall()
+
+    return {
+        "users": [_row_to_user(row) for row in rows],
+        "page": page,
+        "pages": pages,
+        "page_size": page_size,
+        "total": total,
+    }
+
+
 def set_user_tariff(telegram_id, tariff, premium_until=None):
     """Меняет тариф пользователя и при необходимости срок Premium."""
 

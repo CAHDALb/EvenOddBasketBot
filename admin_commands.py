@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from telegram_users import (
     get_user,
     get_user_statistics,
+    get_users_page,
     set_user_active,
     set_user_tariff,
 )
@@ -51,7 +52,7 @@ def handle_admin_command(command, arguments, admin_user):
         return "⛔ Эта команда доступна только администратору."
 
     if command == "/users":
-        return _handle_users()
+        return _handle_users(arguments)
 
     if command == "/premium":
         return _handle_premium(arguments)
@@ -68,22 +69,76 @@ def handle_admin_command(command, arguments, admin_user):
     return "Неизвестная административная команда."
 
 
-def _handle_users():
-    """Формирует общую статистику пользователей."""
+def _handle_users(arguments):
+    """
+    Показывает статистику и список зарегистрированных пользователей.
+
+    Без аргумента открывает первую страницу:
+    /users
+
+    Для следующей страницы:
+    /users 2
+    """
+
+    if len(arguments) > 1:
+        return (
+            "Использование:\n"
+            "/users\n"
+            "/users PAGE\n\n"
+            "Пример:\n"
+            "/users 2"
+        )
+
+    page = 1
+
+    if arguments:
+        page = _parse_positive_integer(arguments[0])
+
+        if page is None:
+            return "❌ Номер страницы должен быть целым числом больше нуля."
 
     statistics = get_user_statistics()
+    users_page = get_users_page(page=page, page_size=10)
 
-    return (
-        "👥 ПОЛЬЗОВАТЕЛИ\n\n"
-        f"Всего: {statistics['total']}\n\n"
-        f"👑 ADMIN: {statistics['admin']}\n"
-        f"💎 PREMIUM: {statistics['premium']}\n"
-        f"🆓 FREE: {statistics['free']}\n"
-        f"🚫 Заблокировано: {statistics['blocked']}\n\n"
-        f"Сегодня зарегистрировалось: {statistics['today']}\n"
-        f"За последние 7 дней: {statistics['last_7_days']}\n"
-        f"За последние 30 дней: {statistics['last_30_days']}"
-    )
+    lines = [
+        "👥 ПОЛЬЗОВАТЕЛИ",
+        "",
+        f"Всего: {statistics['total']}",
+        f"👑 ADMIN: {statistics['admin']}",
+        f"💎 PREMIUM: {statistics['premium']}",
+        f"🆓 FREE: {statistics['free']}",
+        f"🚫 Заблокировано: {statistics['blocked']}",
+        "",
+        (
+            "📋 СПИСОК "
+            f"— страница {users_page['page']}/{users_page['pages']}"
+        ),
+        "",
+    ]
+
+    if not users_page["users"]:
+        lines.append("Пользователей пока нет.")
+    else:
+        start_number = (
+            (users_page["page"] - 1) * users_page["page_size"] + 1
+        )
+
+        for number, user in enumerate(
+            users_page["users"],
+            start=start_number,
+        ):
+            lines.extend(_format_user_for_list(number, user))
+
+    if users_page["pages"] > 1:
+        lines.extend(
+            [
+                "",
+                "Следующая страница:",
+                f"/users {min(users_page['page'] + 1, users_page['pages'])}",
+            ]
+        )
+
+    return "\n".join(lines)
 
 
 def _handle_premium(arguments):
@@ -143,9 +198,11 @@ def _handle_free(arguments, admin_user):
     if user is None:
         return "❌ Пользователь с таким Telegram ID не найден."
 
-    if user.get("tariff") == "admin":
-        if user["telegram_id"] == admin_user["telegram_id"]:
-            return "⛔ Нельзя снять права у самого себя."
+    if (
+        user.get("tariff") == "admin"
+        and int(telegram_id) == int(admin_user["telegram_id"])
+    ):
+        return "⛔ Нельзя снять права ADMIN у самого себя."
 
     set_user_tariff(telegram_id, "free")
 
@@ -203,6 +260,43 @@ def _handle_unblock(arguments):
         f"Telegram ID: {telegram_id}"
     )
 
+
+
+def _format_user_for_list(number, user):
+    """Формирует карточку одного пользователя внутри команды /users."""
+
+    tariff = user.get("tariff", "free")
+    is_active = bool(user.get("is_active"))
+
+    if not is_active:
+        icon = "🚫"
+        tariff_title = f"{tariff.upper()} · заблокирован"
+    elif tariff == "admin":
+        icon = "👑"
+        tariff_title = "ADMIN"
+    elif tariff == "premium":
+        icon = "💎"
+        tariff_title = "PREMIUM"
+    else:
+        icon = "🆓"
+        tariff_title = "FREE"
+
+    lines = [
+        f"{number}. {icon} {_user_title(user)}",
+        f"ID: {user['telegram_id']}",
+        f"Тариф: {tariff_title}",
+    ]
+
+    premium_until = user.get("premium_until")
+
+    if tariff == "premium" and premium_until:
+        lines.append(
+            "Premium до: "
+            f"{premium_until.strftime('%d.%m.%Y %H:%M')} UTC"
+        )
+
+    lines.append("")
+    return lines
 
 def _single_user_argument(arguments, command):
     """Проверяет команду, которой нужен только Telegram ID."""
