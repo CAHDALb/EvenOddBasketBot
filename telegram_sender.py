@@ -23,8 +23,8 @@ from telegram_users import (
 )
 
 
-def send_to_chat(chat_id, text):
-    """Отправляет одно сообщение одному получателю."""
+def send_to_chat(chat_id, text, reply_markup=None):
+    """Отправляет сообщение и при необходимости кнопочное меню."""
 
     if not BOT_TOKEN:
         return {
@@ -35,12 +35,17 @@ def send_to_chat(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     try:
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+        }
+
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+
         response = requests.post(
             url,
-            json={
-                "chat_id": chat_id,
-                "text": text,
-            },
+            json=payload,
             timeout=20,
         )
 

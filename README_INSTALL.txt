@@ -1,36 +1,26 @@
-ШАГ 1. СИСТЕМА ПОЛЬЗОВАТЕЛЕЙ EVENODDBASKETBOT
+EvenOddBasketBot — список пользователей в /users
 
-Новые файлы:
+Что изменено:
+1. /users показывает общую статистику и список пользователей.
+2. Для каждого пользователя выводятся имя, username, Telegram ID, тариф и блокировка.
+3. Добавлена пагинация по 10 пользователей:
+   /users
+   /users 2
+4. Сохранена защита: администратор не может снять права ADMIN у самого себя,
+   но может перевести другого администратора на FREE.
+
+Какие файлы заменить в проекте:
+- admin_commands.py
 - telegram_users.py
-- telegram_bot.py
 
-Заменить в проекте:
-- main.py
-- telegram_sender.py
-- postgres_database.py
-- config.py
+После замены:
+1. git add admin_commands.py telegram_users.py
+2. git commit -m "Show users list in admin panel"
+3. git push
+4. Дождаться нового Deploy на Render.
+5. В Telegram отправить /users
 
-requirements.txt не изменился.
-
-Переменные Render:
-- BOT_TOKEN — уже есть
-- DATABASE_URL — уже есть
-- CHAT_IDS — можно оставить как есть
-
-Дополнительно можно создать:
-- ADMIN_TELEGRAM_IDS = ваш Telegram ID
-- FREE_DAILY_SIGNAL_LIMIT = 2
-- TELEGRAM_POLL_TIMEOUT = 25
-
-После запуска:
-1. PostgreSQL сам создаст таблицу telegram_users.
-2. ID из CHAT_IDS или ADMIN_TELEGRAM_IDS станет администратором.
-3. Любой пользователь пишет боту /start.
-4. Пользователь автоматически регистрируется с тарифом FREE.
-5. FREE получает максимум 2 новых сигнала в сутки.
-6. ADMIN получает все новые сигналы.
-
-Команды первого этапа:
-/start
-/status
-/myid
+ВАЖНО:
+На Render в переменной ADMIN_TELEGRAM_IDS должен остаться только ID владельца.
+Если переменная не создана, проверь CHAT_IDS. Иначе ID друга снова получит ADMIN
+при следующем перезапуске сервера.

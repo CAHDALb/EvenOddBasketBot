@@ -78,7 +78,9 @@ def ensure_admin_user(telegram_id):
     """
     Добавляет владельца бота в базу как администратора.
 
-    Используется для переноса старых CHAT_IDS без потери доступа.
+    Используется для первоначального переноса ADMIN_TELEGRAM_IDS.
+    Если пользователь уже существует, его текущий тариф не изменяется.
+    Поэтому ручной перевод ADMIN в FREE сохраняется после перезапуска.
     """
 
     with get_connection() as connection:
@@ -94,10 +96,7 @@ def ensure_admin_user(telegram_id):
                 )
                 VALUES (%s, 'admin', 0, CURRENT_DATE, TRUE)
                 ON CONFLICT (telegram_id)
-                DO UPDATE SET
-                    tariff = 'admin',
-                    is_active = TRUE,
-                    updated_at = NOW()
+                DO NOTHING
                 """,
                 (int(telegram_id),),
             )

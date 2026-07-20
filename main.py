@@ -38,8 +38,8 @@ def main():
     create_sqlite_tables()
     create_postgres_tables()
 
-    # Переносим владельца из CHAT_IDS / ADMIN_TELEGRAM_IDS
-    # в новую таблицу пользователей как администратора.
+    # Первоначально добавляем владельца из ADMIN_TELEGRAM_IDS.
+    # Уже существующие тарифы при перезапуске не перезаписываются.
     for admin_id in ADMIN_TELEGRAM_IDS:
         ensure_admin_user(admin_id)
 
