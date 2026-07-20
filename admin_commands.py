@@ -57,7 +57,7 @@ def handle_admin_command(command, arguments, admin_user):
         return _handle_premium(arguments)
 
     if command == "/free":
-        return _handle_free(arguments)
+        return _handle_free(arguments, admin_user)
 
     if command == "/block":
         return _handle_block(arguments)
@@ -130,7 +130,7 @@ def _handle_premium(arguments):
     )
 
 
-def _handle_free(arguments):
+def _handle_free(arguments, admin_user):
     """Переводит пользователя на бесплатный тариф."""
 
     telegram_id, error = _single_user_argument(arguments, "/free")
@@ -144,7 +144,8 @@ def _handle_free(arguments):
         return "❌ Пользователь с таким Telegram ID не найден."
 
     if user.get("tariff") == "admin":
-        return "⛔ Нельзя снять права ADMIN этой командой."
+        if user["telegram_id"] == admin_user["telegram_id"]:
+            return "⛔ Нельзя снять права у самого себя."
 
     set_user_tariff(telegram_id, "free")
 
