@@ -8,14 +8,18 @@ from statistics import print_total_statistics
 from config import CHECK_INTERVAL
 from parser import get_matches
 from strategy import check_strategy
-from telegram_sender import send_telegram
+from telegram_sender import send_telegram, send_signal
 from storage import load_sent_matches, save_sent_matches
 from database import add_signal
-from sqlite_database import create_tables
+from sqlite_database import create_tables as create_sqlite_tables
+from postgres_database import create_tables as create_postgres_tables
 from results import check_all_waiting_signals
 import threading
 from web_server import run_web_server
 from notifications import create_start_message, create_error_message
+from telegram_bot import run_telegram_bot
+from telegram_users import ensure_admin_user
+from config import ADMIN_TELEGRAM_IDS
 
 print("MAIN.PY ЗАГРУЖЕН")
 
@@ -30,8 +34,14 @@ def main():
     print("Бот запущен...")
     print("Render heartbeat: основной цикл main() запущен")
 
-    # Создаём таблицы SQLite, если их ещё нет
-    create_tables()
+    # Создаём таблицы SQLite и PostgreSQL, если их ещё нет
+    create_sqlite_tables()
+    create_postgres_tables()
+
+    # Переносим владельца из CHAT_IDS / ADMIN_TELEGRAM_IDS
+    # в новую таблицу пользователей как администратора.
+    for admin_id in ADMIN_TELEGRAM_IDS:
+        ensure_admin_user(admin_id)
 
     send_telegram(create_start_message())
 
@@ -220,11 +230,14 @@ def main():
                 # =====================================================
                 # Отправляем сообщение в Telegram
                 # =====================================================
-                result = send_telegram(message)
+                result = send_signal(message)
 
                 if result.get("ok"):
 
-                    print("Сообщение отправлено.")
+                    print(
+                        "Сигнал отправлен. Получателей:",
+                        result.get("sent", 0),
+                    )
 
                     # Только после успешной отправки считаем,
                     # что матч уже обработан
@@ -255,6 +268,11 @@ if __name__ == "__main__":
         web_thread = threading.Thread(target=run_web_server)
         web_thread.daemon = True
         web_thread.start()
+
+        # Запускаем обработчик Telegram-команд (/start, /status)
+        telegram_thread = threading.Thread(target=run_telegram_bot)
+        telegram_thread.daemon = True
+        telegram_thread.start()
 
         # Запускаем основного бота
         main()

@@ -77,7 +77,43 @@ def create_tables():
                 """
             )
 
-    print("Таблица PostgreSQL создана или уже существует.")
+            # =====================================================
+            # Пользователи Telegram и их тарифы
+            # =====================================================
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS telegram_users (
+                    telegram_id BIGINT PRIMARY KEY,
+
+                    first_name TEXT,
+                    username TEXT,
+                    language_code TEXT,
+
+                    tariff TEXT NOT NULL DEFAULT 'free'
+                        CHECK (tariff IN ('free', 'premium', 'admin')),
+
+                    signals_today INTEGER NOT NULL DEFAULT 0
+                        CHECK (signals_today >= 0),
+                    last_reset DATE NOT NULL DEFAULT CURRENT_DATE,
+
+                    premium_until TIMESTAMPTZ,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+                    notes TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_telegram_users_tariff_active
+                ON telegram_users (tariff, is_active)
+                """
+            )
+
+    print("Таблицы PostgreSQL созданы или уже существуют.")
 
 def add_signal(match):
     """
