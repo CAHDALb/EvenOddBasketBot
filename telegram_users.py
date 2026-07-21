@@ -196,6 +196,55 @@ def get_signal_recipients():
     ]
 
 
+
+def get_broadcast_recipients(audience="all"):
+    """
+    Возвращает активных получателей административной рассылки.
+
+    audience:
+    - all — все активные пользователи;
+    - premium — только PREMIUM;
+    - free — только FREE.
+    """
+
+    audience = str(audience).lower().strip()
+
+    if audience not in {"all", "premium", "free"}:
+        raise ValueError("Неизвестная аудитория рассылки.")
+
+    _refresh_all_limits()
+
+    conditions = ["is_active = TRUE"]
+    parameters = []
+
+    if audience in {"premium", "free"}:
+        conditions.append("tariff = %s")
+        parameters.append(audience)
+
+    where_sql = " AND ".join(conditions)
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT telegram_id, tariff
+                FROM telegram_users
+                WHERE {where_sql}
+                ORDER BY created_at, telegram_id
+                """,
+                tuple(parameters),
+            )
+
+            rows = cursor.fetchall()
+
+    return [
+        {
+            "telegram_id": int(row[0]),
+            "tariff": row[1],
+        }
+        for row in rows
+    ]
+
 def mark_signal_sent(telegram_id):
     """
     Увеличивает дневной счётчик только для FREE-пользователя.
