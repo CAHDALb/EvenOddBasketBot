@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#020b19">
+    <meta name="description" content="EvenOddBasketBot — публичная панель реальной статистики баскетбольных сигналов.">
+    <title>EvenOddBasketBot — Live Analytics</title>
+    <link rel="icon" type="image/png" href="/static/brand/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css?v={{VERSION}}">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" href="#dashboard" aria-label="EvenOddBasketBot">
+                <img src="/static/brand/favicon.png" alt="EOB" class="brand-logo">
+                <div class="brand-copy">
+                    <div class="brand-title">Even<span>Odd</span>Basket<b>Bot</b></div>
+                    <div class="brand-subtitle">Basketball Signal Analytics</div>
+                </div>
+            </a>
+
+            <nav class="main-nav" aria-label="Разделы панели">
+                <button class="nav-item is-active" data-view="dashboard"><span class="nav-icon">▦</span><span>Панель</span></button>
+                <button class="nav-item" data-view="signals"><span class="nav-icon">⌁</span><span>Сигналы</span></button>
+                <button class="nav-item" data-view="analytics"><span class="nav-icon">▥</span><span>Аналитика</span></button>
+                <button class="nav-item" data-view="strategies"><span class="nav-icon">◎</span><span>Стратегия</span></button>
+                <button class="nav-item" data-view="matches"><span class="nav-icon">◉</span><span>Матчи</span></button>
+                <button class="nav-item" data-view="bankroll"><span class="nav-icon">▣</span><span>Банк</span></button>
+                <button class="nav-item" data-view="alerts"><span class="nav-icon">♢</span><span>Состояние</span><span class="nav-dot" id="alert-dot"></span></button>
+                <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>О панели</span></button>
+            </nav>
+
+            <div class="engine-card">
+                <div class="engine-icon">✦</div>
+                <div>
+                    <strong>DATA ENGINE</strong>
+                    <span id="engine-state">ПОДКЛЮЧЕНИЕ</span>
+                </div>
+            </div>
+
+            <div class="sidebar-time">
+                <strong id="clock">--:--:--</strong>
+                <span id="clock-date">--</span>
+            </div>
+        </aside>
+
+        <div class="mobile-bar">
+            <button class="menu-toggle" id="menu-toggle" aria-label="Открыть меню">☰</button>
+            <div class="mobile-brand">Even<span>Odd</span>Basket<b>Bot</b></div>
+            <div class="live-pill compact"><span></span>LIVE</div>
+        </div>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow" id="section-eyebrow">REAL-TIME ANALYTICS</p>
+                    <h1 id="section-title">Панель стратегии</h1>
+                </div>
+                <div class="topbar-actions">
+                    <div class="updated-label">
+                        <span>Обновлено</span>
+                        <strong id="last-updated">—</strong>
+                    </div>
+                    <button class="refresh-button" id="refresh-button" type="button" aria-label="Обновить данные">↻</button>
+                    <div class="live-pill" id="live-pill"><span></span><b>LIVE</b></div>
+                </div>
+            </header>
+
+            <div class="notice is-hidden" id="system-notice"></div>
+
+            <section class="view is-active" data-view-panel="dashboard">
+                <div class="dashboard-grid">
+                    <article class="panel roi-panel">
+                        <div class="panel-heading">
+                            <div>
+                                <p class="panel-kicker">ЭФФЕКТИВНОСТЬ</p>
+                                <h2>ROI <span class="mini-live"><i></i> LIVE</span></h2>
+                            </div>
+                            <div class="metric-head positive" id="roi-head">+0.00%</div>
+                        </div>
+                        <div class="chart-wrap line-chart-wrap" id="roi-chart" aria-label="График изменения ROI"></div>
+                        <div class="roi-footer">
+                            <div><span>Текущий ROI</span><strong id="current-roi">+0.00%</strong></div>
+                            <div><span>Завершено</span><strong id="roi-sample">0 сигналов</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="panel status-panel">
+                        <div class="panel-heading">
+                            <div><p class="panel-kicker">РЕЗУЛЬТАТЫ</p><h2>Статус сигналов</h2></div>
+                        </div>
+                        <div class="total-block"><span>ВСЕГО СИГНАЛОВ</span><strong id="total-signals">0</strong></div>
+                        <div class="versus-grid">
+                            <div class="win-side"><span>WIN</span><strong id="total-wins">0</strong></div>
+                            <div class="versus">VS</div>
+                            <div class="lose-side"><span>LOSE</span><strong id="total-loses">0</strong></div>
+                        </div>
+                        <div class="dual-progress"><i id="win-progress"></i><b id="lose-progress"></b></div>
+                        <div class="progress-labels"><span id="win-percent">0%</span><span id="lose-percent">0%</span></div>
+                    </article>
+
+                    <article class="panel strategy-panel">
+                        <div class="panel-heading"><div><p class="panel-kicker">ЗА ВСЁ ВРЕМЯ</p><h2>Strategy Monitor</h2></div></div>
+                        <div class="donut" id="strategy-donut"><div><strong id="strategy-rate">0.00%</strong><span>ПРОХОДИМОСТЬ</span></div></div>
+                        <div class="strategy-meta"><span id="strategy-name">Стратегия</span><strong id="strategy-sample">0 завершено</strong></div>
+                    </article>
+
+                    <article class="panel bank-panel">
+                        <div class="panel-heading">
+                            <div><p class="panel-kicker">ЕЖЕДНЕВНЫЙ РЕЗУЛЬТАТ</p><h2>Аналитика банка <span>(за 30 дней)</span></h2></div>
+                        </div>
+                        <div class="chart-wrap bar-chart-wrap" id="bank-chart" aria-label="Изменение банка за 30 дней"></div>
+                        <div class="chart-legend"><span><i class="legend-cyan"></i>Плюсовой день</span><span><i class="legend-orange"></i>Минусовой день</span></div>
+                    </article>
+
+                    <article class="panel history-panel">
+                        <div class="panel-heading"><div><p class="panel-kicker">ПОСЛЕДНИЕ 10</p><h2>История сигналов</h2></div></div>
+                        <div class="history-list" id="history-list"></div>
+                    </article>
+
+                    <div class="metric-strip">
+                        <article class="metric-card"><div class="metric-icon">◎</div><div><span>Всего сигналов</span><strong id="metric-total">0</strong></div></article>
+                        <article class="metric-card"><div class="metric-icon">♜</div><div><span>Проходимость</span><strong id="metric-rate">0.00%</strong></div></article>
+                        <article class="metric-card"><div class="metric-icon">↗</div><div><span>ROI</span><strong id="metric-roi">+0.00%</strong></div></article>
+                        <article class="metric-card pending"><div class="metric-icon">◷</div><div><span>Ожидают</span><strong id="metric-waiting">0</strong></div></article>
+                    </div>
+
+                    <article class="panel match-types-panel">
+                        <div class="panel-heading"><div><p class="panel-kicker">СЕГМЕНТАЦИЯ</p><h2>Типы матчей</h2></div></div>
+                        <div class="match-types-grid" id="match-types-grid"></div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="signals">
+                <article class="panel full-panel">
+                    <div class="panel-heading split-heading">
+                        <div><p class="panel-kicker">ЖУРНАЛ</p><h2>Последние сигналы</h2></div>
+                        <div class="filter-row">
+                            <button class="filter-button is-active" data-signal-filter="all">Все</button>
+                            <button class="filter-button" data-signal-filter="waiting">Ожидают</button>
+                            <button class="filter-button" data-signal-filter="win">WIN</button>
+                            <button class="filter-button" data-signal-filter="lose">LOSE</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll"><table class="data-table"><thead><tr><th>Дата</th><th>Матч</th><th>Тип</th><th>Прогноз</th><th>Статус</th><th>ROI</th></tr></thead><tbody id="signals-table"></tbody></table></div>
+                </article>
+            </section>
+
+            <section class="view" data-view-panel="analytics">
+                <div class="analytics-layout">
+                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">СРАВНЕНИЕ</p><h2>Результаты по типам матчей</h2></div></div><div class="match-types-grid large" id="analytics-types"></div></article>
+                    <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">ТОП-25</p><h2>Страны</h2></div></div><div class="table-scroll compact-table"><table class="data-table"><thead><tr><th>Страна</th><th>Сигналы</th><th>WIN/LOSE</th><th>%</th><th>ROI</th></tr></thead><tbody id="countries-table"></tbody></table></div></article>
+                    <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">ТОП-25</p><h2>Лиги</h2></div></div><div class="table-scroll compact-table"><table class="data-table"><thead><tr><th>Лига</th><th>Сигналы</th><th>WIN/LOSE</th><th>%</th><th>ROI</th></tr></thead><tbody id="leagues-table"></tbody></table></div></article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="strategies">
+                <div class="detail-grid">
+                    <article class="panel strategy-detail"><div class="panel-heading"><div><p class="panel-kicker">ОСНОВНАЯ СТРАТЕГИЯ</p><h2 id="detail-strategy-name">Чётность общего тотала Q4</h2></div></div><div class="strategy-detail-grid"><div><span>Выборка</span><strong id="detail-sample">0</strong></div><div><span>WIN / LOSE</span><strong id="detail-wl">0 / 0</strong></div><div><span>Проходимость</span><strong id="detail-rate">0%</strong></div><div><span>ROI</span><strong id="detail-roi">0</strong></div><div><span>Текущая серия</span><strong id="detail-streak">—</strong></div></div></article>
+                    <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">ДИНАМИКА</p><h2>ROI стратегии</h2></div></div><div class="chart-wrap detail-line" id="strategy-roi-chart"></div></article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="matches">
+                <div class="detail-grid">
+                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">LIVE-КОНТРОЛЬ</p><h2>Матчи в ожидании результата</h2></div></div><div class="waiting-grid" id="waiting-grid"></div></article>
+                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">ЗАВЕРШЕНО</p><h2>Последние результаты</h2></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Время</th><th>Матч</th><th>Результат</th><th>Итоговый тотал</th><th>ROI</th></tr></thead><tbody id="matches-results-table"></tbody></table></div></article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="bankroll">
+                <div class="detail-grid">
+                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">НАКОПИТЕЛЬНЫЙ РЕЗУЛЬТАТ</p><h2>Кривая ROI за всё время</h2></div></div><div class="chart-wrap bankroll-line" id="bankroll-roi-chart"></div></article>
+                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">30 ДНЕЙ</p><h2>Изменение банка по суткам</h2></div></div><div class="chart-wrap bankroll-bars" id="bankroll-bar-chart"></div></article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="alerts">
+                <div class="detail-grid">
+                    <article class="panel alert-card" id="risk-card"><div class="panel-heading"><div><p class="panel-kicker">ПОСЛЕДНИЕ 10 СИГНАЛОВ</p><h2 id="risk-title">Оценка формы</h2></div></div><p id="risk-message">Загрузка…</p></article>
+                    <article class="panel"><div class="panel-heading"><div><p class="panel-kicker">КОНТРОЛЬ</p><h2>Текущее состояние</h2></div></div><div class="status-list"><div><span>Источник данных</span><strong id="status-source">—</strong></div><div><span>Матчей в ожидании</span><strong id="status-waiting">0</strong></div><div><span>Последняя синхронизация</span><strong id="status-sync">—</strong></div></div></article>
+                </div>
+            </section>
+
+            <section class="view" data-view-panel="settings">
+                <article class="panel full-panel about-panel">
+                    <img src="/static/brand/logo_full.jpg" alt="EvenOddBasketBot" class="about-logo">
+                    <div><p class="panel-kicker">PUBLIC MISSION CONTROL</p><h2>О панели</h2><p>Панель получает статистику непосредственно из рабочей базы сигналов. Значения, графики и списки обновляются автоматически и не содержат вручную заданных результатов.</p><div class="status-list horizontal"><div><span>Версия</span><strong id="about-version">—</strong></div><div><span>Автообновление</span><strong id="about-refresh">—</strong></div><div><span>Часовой пояс</span><strong id="about-timezone">—</strong></div></div><p class="disclaimer">Статистика отражает прошлые результаты и не гарантирует будущую проходимость. Сервис предоставляет аналитическую информацию. 18+</p></div>
+                </article>
+            </section>
+
+            <footer class="footer">© 2026 EvenOddBasketBot · Basketball Signal Analytics · <span id="footer-version">v{{VERSION}}</span></footer>
+        </main>
+    </div>
+
+    <div class="loading-overlay" id="loading-overlay"><div class="loader"></div><span>Синхронизация данных</span></div>
+    <script>window.EOB_CONFIG = { refreshSeconds: {{REFRESH_SECONDS}}, version: "{{VERSION}}" };</script>
+    <script src="/static/app.js?v={{VERSION}}" defer></script>
+</body>
+</html>

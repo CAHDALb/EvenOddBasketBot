@@ -58,6 +58,7 @@ def create_tables():
                     away TEXT,
 
                     signal_datetime TIMESTAMPTZ DEFAULT NOW(),
+                    finished_datetime TIMESTAMPTZ,
                     weekday TEXT,
                     hour INTEGER,
 
@@ -74,6 +75,14 @@ def create_tables():
 
                     match_url TEXT
                 )
+                """
+            )
+
+            # Миграция для баз, созданных до web-dashboard v15.
+            cursor.execute(
+                """
+                ALTER TABLE signals
+                ADD COLUMN IF NOT EXISTS finished_datetime TIMESTAMPTZ
                 """
             )
 
@@ -260,7 +269,8 @@ def update_signal_result(match_id, final_total, result, roi):
                     final_total = %s,
                     result = %s,
                     roi = %s,
-                    status = 'finished'
+                    status = 'finished',
+                    finished_datetime = COALESCE(finished_datetime, NOW())
                 WHERE id = %s
                 """,
                 (

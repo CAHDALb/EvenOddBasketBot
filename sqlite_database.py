@@ -79,6 +79,7 @@ def create_tables():
             away TEXT,
 
             signal_datetime TEXT,
+            finished_datetime TEXT,
             weekday TEXT,
             hour INTEGER,
 
@@ -99,7 +100,15 @@ def create_tables():
     )
 
     # Если таблица была создана раньше,
-    # добавляем в неё новый столбец match_type
+    # добавляем новые столбцы без удаления старых данных.
+    add_column_if_missing(
+        cursor=cursor,
+        table_name="signals",
+        column_name="finished_datetime",
+        column_type="TEXT"
+    )
+
+    # Добавляем тип матча для старых баз.
     add_column_if_missing(
         cursor=cursor,
         table_name="signals",
@@ -287,7 +296,8 @@ def update_signal_result(match_id, final_total, result, roi):
             final_total = ?,
             result = ?,
             roi = ?,
-            status = 'finished'
+            status = 'finished',
+            finished_datetime = COALESCE(finished_datetime, datetime('now'))
         WHERE id = ?
     """, (
         final_total,
