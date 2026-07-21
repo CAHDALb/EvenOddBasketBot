@@ -707,3 +707,82 @@ body::before {
     .signals-table { font-size: 11px; }
     .signals-table td { padding: 12px; }
 }
+
+/* =========================================================
+   EvenOddBasketBot 15.2 — final dashboard polish
+   ========================================================= */
+
+/* The sidebar no longer contains DATA ENGINE, and desktop scrolling stays hidden. */
+.sidebar {
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+/* LIVE state uses the same green visual language as WIN. */
+.live-pill {
+    border-color: rgba(32, 230, 166, .72);
+    color: var(--green);
+    background: rgba(5, 45, 34, .28);
+    box-shadow: inset 0 0 24px rgba(32, 230, 166, .035);
+}
+.live-pill span {
+    background: var(--green);
+    box-shadow: 0 0 17px var(--green);
+}
+.live-pill.offline {
+    border-color: rgba(255, 61, 49, .6);
+    color: var(--red);
+    background: rgba(52, 8, 10, .28);
+}
+.live-pill.offline span {
+    background: var(--red);
+    box-shadow: 0 0 17px var(--red);
+}
+
+/* Latest signal card is intentionally larger for comfortable reading. */
+.latest-signal-card {
+    padding: 17px 16px 18px;
+}
+.latest-signal-head {
+    font-size: 9px;
+    letter-spacing: 1.25px;
+}
+.latest-status {
+    padding: 4px 8px;
+    font-size: 8px;
+}
+.latest-match {
+    margin-top: 11px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+.latest-location {
+    margin-top: 9px;
+    gap: 6px;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.latest-stats {
+    gap: 10px;
+    margin-top: 14px;
+}
+.latest-stats > div {
+    padding: 11px;
+}
+.latest-stats span {
+    font-size: 8.5px;
+}
+.latest-stats strong {
+    margin-top: 6px;
+    font-size: 12.5px;
+}
+.latest-stats small {
+    margin-top: 5px;
+    font-size: 9.5px;
+}
+
+@media (max-width: 760px) {
+    /* Mobile drawer may still scroll on short screens. */
+    .sidebar { overflow-y: auto; }
+    .latest-match { white-space: normal; }
+}
