@@ -30,3 +30,12 @@
 - Обычные Telegram-опросы.
 - Предпросмотр, выбор аудитории, подтверждение.
 - Опциональное закрепление у каждого получателя.
+
+## 14.0 — Brand Identity
+
+- Added original EOB brand assets.
+- Added branded Telegram welcome image.
+- Added `/about` and responsible-use disclaimer.
+- Unified Telegram message style.
+- Added automatic Telegram profile/command setup.
+- Rebuilt Mission Control visual design.

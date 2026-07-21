@@ -19,6 +19,7 @@ BUTTON_PROFILE = "👤 Мой профиль"
 BUTTON_STATISTICS = "📈 Моя статистика"
 BUTTON_BUY_PREMIUM = "💎 Купить Premium"
 BUTTON_HELP = "ℹ️ Помощь"
+BUTTON_ABOUT = "🏀 О проекте"
 BUTTON_ADMIN_PANEL = "👑 Админ-панель"
 
 # Кнопки административного меню
@@ -50,6 +51,7 @@ MAIN_MENU_BUTTONS = {
     BUTTON_STATISTICS,
     BUTTON_BUY_PREMIUM,
     BUTTON_HELP,
+    BUTTON_ABOUT,
     BUTTON_ADMIN_PANEL,
     BUTTON_BACK,
 }
@@ -84,7 +86,8 @@ def create_main_keyboard(user):
 
     keyboard = [
         [BUTTON_PROFILE, BUTTON_STATISTICS],
-        [BUTTON_BUY_PREMIUM, BUTTON_HELP],
+        [BUTTON_BUY_PREMIUM, BUTTON_ABOUT],
+        [BUTTON_HELP],
     ]
 
     if user and user.get("tariff") == "admin":

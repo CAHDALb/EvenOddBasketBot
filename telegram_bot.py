@@ -21,6 +21,15 @@ import time
 
 import requests
 
+from branding import (
+    BRAND_NAME,
+    BRAND_TAGLINE,
+    BRAND_VERSION,
+    DISCLAIMER_FULL,
+    DISCLAIMER_SHORT,
+    WELCOME_BANNER_PATH,
+    brand_header,
+)
 from admin_broadcast import (
     STAGE_AUDIENCE,
     STAGE_AWAITING_POLL,
@@ -42,6 +51,7 @@ from config import BOT_TOKEN, FREE_DAILY_SIGNAL_LIMIT, TELEGRAM_POLL_TIMEOUT
 from telegram_keyboards import (
     BUTTON_ADMIN_BACK,
     BUTTON_ADMIN_PANEL,
+    BUTTON_ABOUT,
     BUTTON_AUDIENCE_ALL,
     BUTTON_AUDIENCE_FREE,
     BUTTON_AUDIENCE_PREMIUM,
@@ -72,7 +82,12 @@ from telegram_keyboards import (
     create_poll_request_keyboard,
     create_waiting_post_keyboard,
 )
-from telegram_sender import copy_message, send_to_chat
+from telegram_sender import (
+    configure_bot_profile,
+    copy_message,
+    send_photo_to_chat,
+    send_to_chat,
+)
 from telegram_users import (
     get_remaining_free_signals,
     get_user,
@@ -88,6 +103,12 @@ def run_telegram_bot():
         return
 
     print("Telegram-команды запущены.")
+
+    profile_result = configure_bot_profile()
+    if profile_result.get("ok"):
+        print("Профиль и команды Telegram обновлены.")
+    else:
+        print("Не все параметры профиля Telegram обновились:", profile_result)
 
     offset = None
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
@@ -156,10 +177,9 @@ def _handle_update(update):
             language_code=sender.get("language_code"),
         )
 
-        _send_main_menu(
+        _send_start_welcome(
             telegram_id,
             user,
-            _create_start_reply(user),
         )
         return
 
@@ -196,7 +216,7 @@ def _handle_update(update):
         _send_main_menu(
             telegram_id,
             user,
-            "🏠 ГЛАВНОЕ МЕНЮ\n\nВыберите нужный раздел кнопкой ниже.",
+            f"{brand_header('ГЛАВНОЕ МЕНЮ')}\n\nВыберите нужный раздел кнопкой ниже.",
         )
         return
 
@@ -221,6 +241,14 @@ def _handle_update(update):
             telegram_id,
             user,
             _create_premium_reply(user),
+        )
+        return
+
+    if command in ("/about", "/terms") or text == BUTTON_ABOUT:
+        _send_main_menu(
+            telegram_id,
+            user,
+            _create_about_reply(),
         )
         return
 
@@ -491,6 +519,23 @@ def _handle_broadcast_flow(telegram_id, user, message, text):
     return False
 
 
+def _send_start_welcome(telegram_id, user):
+    """Отправляет фирменный баннер и приветствие после /start."""
+
+    result = send_photo_to_chat(
+        chat_id=telegram_id,
+        photo_path=WELCOME_BANNER_PATH,
+        caption=_create_start_reply(user),
+        reply_markup=create_main_keyboard(user),
+    )
+
+    # Если Telegram временно не принял изображение, пользователь всё равно
+    # должен получить рабочее меню и текст приветствия.
+    if not result.get("ok"):
+        print("Не удалось отправить приветственный баннер:", result)
+        _send_main_menu(telegram_id, user, _create_start_reply(user))
+
+
 def _send_main_menu(telegram_id, user, text):
     """Отправляет сообщение вместе с главным меню."""
 
@@ -544,16 +589,20 @@ def _send_admin_instruction(telegram_id, user, text):
 
 
 def _create_start_reply(user):
-    """Создаёт приветствие после /start."""
+    """Создаёт фирменное приветствие после /start."""
 
     first_name = user.get("first_name") or "друг"
 
     return (
-        f"🏀 Добро пожаловать, {first_name}!\n\n"
-        "Вы зарегистрированы в EvenOddBasketBot.\n\n"
-        f"📦 Тариф: {_tariff_title(user)}\n"
+        f"🏀 ДОБРО ПОЖАЛОВАТЬ В {BRAND_NAME.upper()}\n\n"
+        f"Привет, {first_name}!\n\n"
+        "Сервис анализирует LIVE-баскетбольные матчи, "
+        "формирует сигналы по заданным условиям стратегии и ведёт "
+        "прозрачную статистику результатов.\n\n"
+        f"📦 Ваш тариф: {_tariff_title(user)}\n"
         f"{_limit_text(user)}\n\n"
-        "Используйте кнопки меню внизу экрана."
+        "Используйте фирменное меню внизу экрана.\n\n"
+        f"{DISCLAIMER_SHORT}"
     )
 
 
@@ -562,18 +611,18 @@ def _create_profile_reply(user):
 
     username = user.get("username")
     username_text = f"@{username}" if username else "не указан"
-    status_text = "активен" if user.get("is_active") else "заблокирован"
+    status_text = "активен ✅" if user.get("is_active") else "заблокирован 🚫"
 
     lines = [
-        "👤 МОЙ ПРОФИЛЬ",
+        brand_header("ЛИЧНЫЙ КАБИНЕТ"),
         "",
-        f"Имя: {user.get('first_name') or 'не указано'}",
-        f"Username: {username_text}",
-        f"Telegram ID: {user['telegram_id']}",
-        f"Тариф: {_tariff_title(user)}",
-        f"Статус: {status_text}",
+        f"👤 Имя: {user.get('first_name') or 'не указано'}",
+        f"🔗 Username: {username_text}",
+        f"🆔 Telegram ID: {user['telegram_id']}",
+        f"📦 Тариф: {_tariff_title(user)}",
+        f"🟢 Статус: {status_text}",
         "",
-        f"📨 Получено сигналов сегодня: {user.get('signals_today', 0)}",
+        f"📨 Сигналов сегодня: {user.get('signals_today', 0)}",
         _limit_text(user),
     ]
 
@@ -609,32 +658,33 @@ def _create_personal_statistics_reply(user):
     signals_today = int(user.get("signals_today") or 0)
 
     lines = [
-        "📈 МОЯ СТАТИСТИКА",
+        brand_header("МОЯ СТАТИСТИКА"),
         "",
-        f"Тариф: {_tariff_title(user)}",
+        f"📦 Тариф: {_tariff_title(user)}",
     ]
 
     if tariff == "free":
         remaining = get_remaining_free_signals(user)
         lines.extend(
             [
-                f"Сигналов получено сегодня: {signals_today}",
-                f"Дневной лимит: {FREE_DAILY_SIGNAL_LIMIT}",
-                f"Осталось сегодня: {remaining}",
+                f"📨 Получено сегодня: {signals_today}",
+                f"🎁 Дневной лимит: {FREE_DAILY_SIGNAL_LIMIT}",
+                f"⏳ Осталось сегодня: {remaining}",
             ]
         )
     else:
         lines.extend(
             [
-                "Дневной лимит: без ограничений",
-                "Для ADMIN и PREMIUM ограничивающий счётчик не используется.",
+                "♾ Дневной лимит: без ограничений",
+                "✅ Доступны все подходящие сигналы.",
             ]
         )
 
     lines.extend(
         [
             "",
-            "Персональную историю WIN/LOSE добавим следующим этапом.",
+            "История личных полученных сигналов будет добавлена "
+            "на следующем этапе развития кабинета.",
         ]
     )
 
@@ -646,16 +696,39 @@ def _create_premium_reply(user):
 
     if user.get("tariff") in ("premium", "admin"):
         return (
-            "💎 PREMIUM\n\n"
-            "У вас уже открыт доступ ко всем сигналам без дневного лимита."
+            f"{brand_header('PREMIUM-ДОСТУП')}\n\n"
+            "✅ У вас уже открыт доступ ко всем подходящим сигналам "
+            "без дневного ограничения."
         )
 
     return (
-        "💎 PREMIUM\n\n"
-        f"FREE получает до {FREE_DAILY_SIGNAL_LIMIT} сигналов в сутки.\n"
-        "PREMIUM получает все подходящие сигналы без дневного ограничения.\n\n"
-        "Автоматическую оплату подключим на следующем этапе. "
-        "Пока Premium выдаёт администратор."
+        f"{brand_header('PREMIUM-ДОСТУП')}\n\n"
+        f"🆓 FREE: до {FREE_DAILY_SIGNAL_LIMIT} сигналов в сутки.\n"
+        "💎 PREMIUM: все подходящие сигналы без дневного лимита.\n\n"
+        "Автоматическую оплату подключим отдельным безопасным этапом. "
+        "До этого Premium выдаёт администратор."
+    )
+
+
+def _create_about_reply():
+    """Рассказывает о проекте и показывает полный дисклеймер."""
+
+    return (
+        f"{brand_header('О ПРОЕКТЕ')}\n\n"
+        f"{BRAND_TAGLINE}\n"
+        f"Версия системы: {BRAND_VERSION}\n\n"
+        "EvenOddBasketBot — сервис алгоритмической аналитики "
+        "LIVE-баскетбольных матчей. Проект проверяет заранее заданные "
+        "условия стратегии, сохраняет сигналы и публикует фактические "
+        "результаты WIN/LOSE и ROI.\n\n"
+        "Наши принципы:\n"
+        "• прозрачная история результатов;\n"
+        "• отсутствие обещаний гарантированной прибыли;\n"
+        "• единые правила отбора для всех пользователей;\n"
+        "• ответственное отношение к финансовому риску.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "⚖️ ВАЖНАЯ ИНФОРМАЦИЯ\n\n"
+        f"{DISCLAIMER_FULL}"
     )
 
 
@@ -663,16 +736,15 @@ def _create_help_reply(user):
     """Создаёт краткую справку по боту."""
 
     lines = [
-        "ℹ️ ПОМОЩЬ",
+        brand_header("ПОМОЩЬ"),
         "",
-        "Используйте кнопки внизу Telegram.",
+        "Используйте кнопки фирменного меню внизу Telegram.",
         "",
         "Текстовые команды:",
-        "/start — регистрация и главное меню",
+        "/start — регистрация и приветствие",
         "/menu — открыть главное меню",
         "/profile — мой профиль",
-        "/status — тариф и доступ",
-        "/myid — профиль и Telegram ID",
+        "/about — о проекте и правила",
         "/help — эта справка",
     ]
 
@@ -698,10 +770,11 @@ def _create_admin_panel_reply():
     """Создаёт приветствие административного меню."""
 
     return (
-        "👑 АДМИН-ПАНЕЛЬ\n\n"
-        "Здесь можно управлять пользователями и делать публикации.\n\n"
+        f"{brand_header('АДМИН-ПАНЕЛЬ')}\n\n"
+        "Управление пользователями, тарифами и фирменными "
+        "публикациями проекта.\n\n"
         "Раздел «📢 Рассылка» поддерживает текст, фото, видео, "
-        "файлы и обычные Telegram-опросы."
+        "файлы, опросы, предпросмотр и подтверждение отправки."
     )
 
 
@@ -709,7 +782,7 @@ def _create_broadcast_menu_reply():
     """Описание первого экрана рассылки."""
 
     return (
-        "📢 АДМИНСКАЯ РАССЫЛКА\n\n"
+        f"{brand_header('АДМИНСКАЯ РАССЫЛКА')}\n\n"
         "1. Создайте публикацию или опрос.\n"
         "2. Проверьте предпросмотр.\n"
         "3. Выберите аудиторию.\n"
@@ -725,10 +798,10 @@ def _create_broadcast_confirmation(session):
     pin_text = "да" if session.get("pin") else "нет"
 
     return (
-        "⚠️ ПОДТВЕРЖДЕНИЕ РАССЫЛКИ\n\n"
-        f"Тип: {content_title(session.get('content_kind'))}\n"
-        f"Аудитория: {audience_title(session.get('audience'))}\n"
-        f"Закрепить у получателей: {pin_text}\n\n"
+        f"{brand_header('ПОДТВЕРЖДЕНИЕ РАССЫЛКИ')}\n\n"
+        f"📝 Тип: {content_title(session.get('content_kind'))}\n"
+        f"👥 Аудитория: {audience_title(session.get('audience'))}\n"
+        f"📌 Закрепить: {pin_text}\n\n"
         "После нажатия «✅ Подтвердить» рассылка начнётся сразу."
     )
 

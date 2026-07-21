@@ -8,13 +8,23 @@ telegram_sender.py
 Назначение:
 - отправляет служебные сообщения администраторам;
 - рассылает сигналы пользователям с учётом тарифа;
-- копирует административные публикации;
-- закрепляет сообщения административной рассылки.
+- отправляет фирменные изображения;
+- настраивает профиль и команды Telegram-бота;
+- копирует и закрепляет административные публикации.
 ===========================================================
 """
 
+import json
+from pathlib import Path
+
 import requests
 
+from branding import (
+    BOT_COMMANDS,
+    BOT_DESCRIPTION,
+    BOT_SHORT_DESCRIPTION,
+    BRAND_NAME,
+)
 from config import BOT_TOKEN
 from telegram_users import (
     deactivate_user,
@@ -40,6 +50,52 @@ def send_to_chat(chat_id, text, reply_markup=None):
         payload,
         recipient_chat_id=chat_id,
     )
+
+
+def send_photo_to_chat(chat_id, photo_path, caption=None, reply_markup=None):
+    """Отправляет локальное изображение с подписью и клавиатурой."""
+
+    if not BOT_TOKEN:
+        return {"ok": False, "description": "BOT_TOKEN не найден."}
+
+    path = Path(photo_path)
+
+    if not path.is_file():
+        return {
+            "ok": False,
+            "description": f"Изображение не найдено: {path}",
+        }
+
+    data = {"chat_id": str(chat_id)}
+
+    if caption:
+        data["caption"] = caption
+
+    if reply_markup is not None:
+        # При multipart-запросе Telegram ждёт JSON в виде строки.
+        data["reply_markup"] = json.dumps(
+            reply_markup,
+            ensure_ascii=False,
+        )
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+
+    try:
+        with path.open("rb") as photo_file:
+            response = requests.post(
+                url,
+                data=data,
+                files={"photo": (path.name, photo_file)},
+                timeout=45,
+            )
+
+        return _parse_telegram_response(
+            response,
+            recipient_chat_id=chat_id,
+        )
+
+    except (OSError, requests.RequestException, ValueError) as error:
+        return {"ok": False, "description": str(error)}
 
 
 def copy_message(chat_id, from_chat_id, message_id):
@@ -70,12 +126,42 @@ def pin_chat_message(chat_id, message_id):
     )
 
 
+def configure_bot_profile():
+    """
+    Настраивает имя, описание и список команд через Telegram Bot API.
+
+    Аватар Telegram не разрешает менять этим API, поэтому файл
+    assets/brand/avatar_eob.png устанавливается вручную через BotFather.
+    Ошибка одного шага не мешает запуску основного бота.
+    """
+
+    operations = {
+        "name": _telegram_request("setMyName", {"name": BRAND_NAME}),
+        "short_description": _telegram_request(
+            "setMyShortDescription",
+            {"short_description": BOT_SHORT_DESCRIPTION},
+        ),
+        "description": _telegram_request(
+            "setMyDescription",
+            {"description": BOT_DESCRIPTION},
+        ),
+        "commands": _telegram_request(
+            "setMyCommands",
+            {"commands": BOT_COMMANDS},
+        ),
+    }
+
+    operations["ok"] = all(
+        result.get("ok") for result in operations.values()
+    )
+    return operations
+
+
 def send_telegram(text):
     """
     Отправляет служебное сообщение администраторам.
 
-    Эта функция оставлена совместимой со старым кодом:
-    сообщения о запуске, ошибках и результатах пока получают админы.
+    Сообщения о запуске, ошибках и результатах получают администраторы.
     """
 
     try:
@@ -93,7 +179,7 @@ def send_signal(text):
     """
     Отправляет новый сигнал всем разрешённым пользователям.
 
-    FREE: не более двух сигналов в сутки.
+    FREE: не более дневного лимита.
     PREMIUM и ADMIN: все сигналы.
     """
 
@@ -126,11 +212,7 @@ def send_signal(text):
                 mark_signal_sent(telegram_id)
         else:
             failed += 1
-            print(
-                "Ошибка отправки пользователю",
-                telegram_id,
-                result,
-            )
+            print("Ошибка отправки пользователю", telegram_id, result)
 
     return {
         "ok": sent > 0,
@@ -142,38 +224,41 @@ def send_signal(text):
 
 
 def _telegram_request(method, payload, recipient_chat_id=None):
-    """Выполняет безопасный запрос к Telegram Bot API."""
+    """Выполняет безопасный JSON-запрос к Telegram Bot API."""
 
     if not BOT_TOKEN:
-        return {
-            "ok": False,
-            "description": "BOT_TOKEN не найден.",
-        }
+        return {"ok": False, "description": "BOT_TOKEN не найден."}
 
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
 
     try:
         response = requests.post(url, json=payload, timeout=30)
-        result = response.json()
-
-        if (
-            recipient_chat_id is not None
-            and not result.get("ok")
-            and response.status_code in (400, 403)
-            and _looks_like_unavailable_chat(result)
-        ):
-            try:
-                deactivate_user(recipient_chat_id)
-            except Exception as error:
-                print("Не удалось отключить пользователя:", error)
-
-        return result
+        return _parse_telegram_response(
+            response,
+            recipient_chat_id=recipient_chat_id,
+        )
 
     except (requests.RequestException, ValueError) as error:
-        return {
-            "ok": False,
-            "description": str(error),
-        }
+        return {"ok": False, "description": str(error)}
+
+
+def _parse_telegram_response(response, recipient_chat_id=None):
+    """Разбирает ответ Telegram и отключает недоступные личные чаты."""
+
+    result = response.json()
+
+    if (
+        recipient_chat_id is not None
+        and not result.get("ok")
+        and response.status_code in (400, 403)
+        and _looks_like_unavailable_chat(result)
+    ):
+        try:
+            deactivate_user(recipient_chat_id)
+        except Exception as error:
+            print("Не удалось отключить пользователя:", error)
+
+    return result
 
 
 def _looks_like_unavailable_chat(result):
@@ -195,10 +280,7 @@ def _send_to_many(chat_ids, text):
 
     sent = 0
     failed = 0
-    last_result = {
-        "ok": False,
-        "description": "Нет получателей.",
-    }
+    last_result = {"ok": False, "description": "Нет получателей."}
 
     for chat_id in chat_ids:
         result = send_to_chat(chat_id, text)

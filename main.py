@@ -1,4 +1,5 @@
 import time
+from branding import BRAND_NAME, DISCLAIMER_SHORT
 from analytics import (
     build_signal_passport,
     get_recent_statistics,
@@ -164,7 +165,8 @@ def main():
                 # Формируем сообщение для Telegram
                 # =====================================================
                 message = (
-                    "🚨 СИГНАЛ ПО СТРАТЕГИИ 🚨\n\n"
+                    f"🏀 {BRAND_NAME.upper()} • LIVE-СИГНАЛ\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n\n"
 
                     f"🌍 {match.get('country')}\n"
                     f"🏆 {match.get('league')}\n"
@@ -214,7 +216,9 @@ def main():
                     "Идёт накопление статистики.\n\n"
 
                     f"🆔 ID: {match['id']}\n"
-                    f"🔗 {match_url}"
+                    f"🔗 {match_url}\n\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"{DISCLAIMER_SHORT}"
                 )
 
                 # Сначала запоминаем матч, чтобы при перезапуске не отправить его повторно

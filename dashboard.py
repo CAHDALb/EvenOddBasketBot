@@ -11,6 +11,8 @@ dashboard.py
 ===========================================================
 """
 from financial import VirtualFund, BANK_MODELS
+from branding import BRAND_NAME, BRAND_TAGLINE, BRAND_VERSION
+from config import CHECK_INTERVAL
 from html import escape
 
 from analytics import get_recent_statistics, get_risk_indicator
@@ -254,19 +256,15 @@ def build_fund_cards(funds):
     return "".join(cards)
 
 def build_dashboard_html():
-    """
-    Загружает статистику и возвращает готовую HTML-страницу.
-    """
+    """Загружает статистику и возвращает фирменную HTML-страницу."""
 
     total = get_total_statistics()
     countries = get_country_statistics()
     leagues = get_league_statistics()
     match_types = get_match_type_statistics()
 
-    # Количество завершённых сигналов
     completed_signals = total["wins"] + total["loses"]
 
-    # Создаём три виртуальные модели банка
     funds = [
         VirtualFund(
             model_name=model_name,
@@ -278,9 +276,7 @@ def build_dashboard_html():
 
     recent = get_recent_statistics(limit=10)
     risk = get_risk_indicator(recent)
-
     history_line = recent["history_line"] or "Пока нет результатов"
-
     streak = recent["streak"]
 
     if streak["result"] == "win":
@@ -293,7 +289,6 @@ def build_dashboard_html():
     country_rows = build_country_rows(countries)
     league_rows = build_league_rows(leagues)
     match_type_cards = build_match_type_cards(match_types)
-
     fund_cards = build_fund_cards(funds)
 
     return f"""
@@ -301,58 +296,64 @@ def build_dashboard_html():
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#031126">
+    <meta name="description" content="EvenOddBasketBot — LIVE-баскетбольная аналитика и прозрачная статистика сигналов.">
+    <meta http-equiv="refresh" content="{CHECK_INTERVAL}">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <title>{BRAND_NAME} — Mission Control</title>
 
-    <!-- Обновляем статистику раз в 180 секунд -->
-    <meta http-equiv="refresh" content="180">
-
-    <title>EvenOddBasketBot Mission Control</title>
-
-    <link
-    rel="stylesheet"
-    href="/static/styles.css"
-    >
+    <link rel="icon" type="image/png" href="/static/brand/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 
 <body>
     <div class="container">
+        <nav class="brand-nav">
+            <div class="brand-lockup">
+                <img class="brand-mark" src="/static/brand/favicon.png" alt="EOB">
+                <div>
+                    <h1 class="brand-name">
+                        Even<span class="odd">Odd</span>Basket<span class="bot">Bot</span>
+                    </h1>
+                    <p class="brand-tagline">{BRAND_TAGLINE}</p>
+                </div>
+            </div>
+            <div class="status">System online</div>
+        </nav>
 
-        <header class="header">
-            <h1>🏀 EvenOddBasketBot</h1>
-            <p>Mission Control v0.1</p>
-            <div class="status">● Система работает</div>
+        <header class="hero">
+            <img
+                src="/static/brand/hero_banner.jpg"
+                alt="EvenOddBasketBot Basketball Signal Analytics"
+            >
+            <div class="hero-caption">
+                <strong>Mission Control v{BRAND_VERSION}</strong>
+                <span>Алгоритмическая аналитика LIVE-баскетбола</span>
+            </div>
         </header>
 
-        <section class="cards">
+        <section class="cards" aria-label="Основная статистика">
             <div class="card">
                 <span class="label">Всего сигналов</span>
                 <span class="value">{total["total"]}</span>
             </div>
-
             <div class="card">
                 <span class="label">Ожидают</span>
                 <span class="value">{total["waiting"]}</span>
             </div>
-
             <div class="card">
                 <span class="label">WIN</span>
                 <span class="value">{total["wins"]}</span>
             </div>
-
             <div class="card">
                 <span class="label">LOSE</span>
                 <span class="value">{total["loses"]}</span>
             </div>
-
             <div class="card">
                 <span class="label">Проходимость</span>
                 <span class="value">{total["win_rate"]:.2f}%</span>
             </div>
-
             <div class="card">
                 <span class="label">ROI</span>
                 <span class="value">{format_roi(total["roi"])}</span>
@@ -361,110 +362,77 @@ def build_dashboard_html():
 
         <section class="section">
             <h2>📈 Последние результаты</h2>
-
-            <div class="recent-line">
-                {history_line}
-            </div>
-
-            <p>
-                <strong>WIN:</strong> {recent["wins"]}
-                из {recent["total"]}
-            </p>
-
-            <p>
-                <strong>Проходимость:</strong>
-                {recent["win_rate"]:.2f}%
-            </p>
-
-            <p>
-                <strong>Текущая серия:</strong>
-                {streak_text}
-            </p>
+            <div class="recent-line">{history_line}</div>
+            <p><strong>WIN:</strong> {recent["wins"]} из {recent["total"]}</p>
+            <p><strong>Проходимость:</strong> {recent["win_rate"]:.2f}%</p>
+            <p><strong>Текущая серия:</strong> {streak_text}</p>
 
             <div class="risk">
-                <strong>
-                    {risk["icon"]} {escape(risk["title"])}
-                </strong>
-
+                <strong>{risk["icon"]} {escape(risk["title"])}</strong>
                 <p>{escape(risk["message"])}</p>
             </div>
         </section>
 
-                <section class="section">
+        <section class="section">
             <h2>📂 Типы матчей</h2>
-
-            <div class="type-grid">
-                {match_type_cards}
-            </div>
+            <div class="type-grid">{match_type_cards}</div>
         </section>
 
         <section class="section">
             <h2>💼 EvenOdd Strategy Fund</h2>
-
             <p class="section-description">
-                Стартовый виртуальный капитал каждой модели:
-                100 000 ₽. Фонды автоматически активируются
-                после накопления 100 завершённых сигналов.
+                Стартовый виртуальный капитал каждой модели: 100 000 ₽.
+                Фонды автоматически активируются после накопления
+                100 завершённых сигналов.
             </p>
-
-            <div class="fund-grid">
-                {fund_cards}
-            </div>
+            <div class="fund-grid">{fund_cards}</div>
         </section>
 
         <section class="section">
             <h2>🌍 Статистика по странам</h2>
-
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>№</th>
-                            <th>Страна</th>
-                            <th>Сигналов</th>
-                            <th>WIN</th>
-                            <th>LOSE</th>
-                            <th>Проходимость</th>
-                            <th>ROI</th>
+                            <th>№</th><th>Страна</th><th>Сигналов</th>
+                            <th>WIN</th><th>LOSE</th>
+                            <th>Проходимость</th><th>ROI</th>
                         </tr>
                     </thead>
-
-                    <tbody>
-                        {country_rows}
-                    </tbody>
+                    <tbody>{country_rows}</tbody>
                 </table>
             </div>
         </section>
 
         <section class="section">
             <h2>🏆 Статистика по лигам</h2>
-
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>№</th>
-                            <th>Лига</th>
-                            <th>Сигналов</th>
-                            <th>WIN</th>
-                            <th>LOSE</th>
-                            <th>Проходимость</th>
-                            <th>ROI</th>
+                            <th>№</th><th>Лига</th><th>Сигналов</th>
+                            <th>WIN</th><th>LOSE</th>
+                            <th>Проходимость</th><th>ROI</th>
                         </tr>
                     </thead>
-
-                    <tbody>
-                        {league_rows}
-                    </tbody>
+                    <tbody>{league_rows}</tbody>
                 </table>
             </div>
         </section>
 
-        <footer class="footer">
-            Статистика загружается из PostgreSQL Neon.
-            Страница обновляется каждые 180 секунд.
-        </footer>
+        <aside class="legal">
+            <strong>⚠️ Ответственное использование</strong><br>
+            EvenOddBasketBot предоставляет информационно-аналитические
+            материалы, не гарантирует прибыль и не является букмекерской
+            организацией. Прошлые результаты не гарантируют будущую
+            проходимость. Пользователь принимает решения самостоятельно. 18+.
+        </aside>
 
+        <footer class="footer">
+            {BRAND_NAME} • {BRAND_TAGLINE}<br>
+            Данные загружаются из PostgreSQL Neon. Страница обновляется
+            каждые {CHECK_INTERVAL} секунд.
+        </footer>
     </div>
 </body>
 </html>
@@ -472,31 +440,35 @@ def build_dashboard_html():
 
 
 def build_error_html(error):
-    """
-    Страница, отображаемая при ошибке чтения базы.
-    """
+    """Фирменная страница, отображаемая при ошибке чтения базы."""
 
     return f"""
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-    <title>EvenOddBasketBot — ошибка</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#031126">
+    <title>{BRAND_NAME} — ошибка</title>
+    <link rel="icon" type="image/png" href="/static/brand/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
-
-<body style="
-    background:#10131a;
-    color:white;
-    font-family:Arial;
-    padding:40px;
-">
-    <h1>🏀 EvenOddBasketBot</h1>
-    <h2>Не удалось загрузить статистику</h2>
-    <p>{escape(str(error))}</p>
+<body>
+    <div class="container">
+        <nav class="brand-nav">
+            <div class="brand-lockup">
+                <img class="brand-mark" src="/static/brand/favicon.png" alt="EOB">
+                <div>
+                    <h1 class="brand-name">Even<span class="odd">Odd</span>Basket<span class="bot">Bot</span></h1>
+                    <p class="brand-tagline">{BRAND_TAGLINE}</p>
+                </div>
+            </div>
+        </nav>
+        <section class="section">
+            <h2>Не удалось загрузить статистику</h2>
+            <p>{escape(str(error))}</p>
+        </section>
+    </div>
 </body>
 </html>
 """
