@@ -554,3 +554,156 @@ body::before {
     .filter-row { width: 100%; }
     .split-heading { flex-direction: column; align-items: flex-start; }
 }
+
+/* =========================================================
+   EvenOddBasketBot 15.1 — UI fixes and interactive bank models
+   ========================================================= */
+
+/* The logo text must stay inside the sidebar and never overlap page titles. */
+:root { --sidebar: 230px; }
+.sidebar { overflow-x: hidden; }
+.brand { min-width: 0; overflow: hidden; }
+.brand-copy { flex: 1 1 auto; overflow: hidden; }
+.brand-title { font-size: 13px; letter-spacing: -.55px; }
+.main-content { position: relative; }
+.topbar > div:first-child { min-width: 0; max-width: 100%; }
+.topbar h1 { max-width: 100%; overflow-wrap: anywhere; }
+
+.telegram-button {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin: 14px 2px 10px;
+    padding: 11px 12px;
+    border: 1px solid rgba(16, 214, 232, .45);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(0, 136, 190, .24), rgba(2, 31, 56, .75));
+    color: #eafcff;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(0, 173, 220, .08);
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.telegram-button:hover { transform: translateY(-1px); border-color: var(--cyan); box-shadow: 0 12px 34px rgba(16, 214, 232, .15); }
+.telegram-button-icon { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: linear-gradient(145deg, #28baf0, #0879bd); color: #fff; font-size: 17px; transform: rotate(-20deg); }
+.telegram-button-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.telegram-button-copy b { font-size: 10px; letter-spacing: .55px; text-transform: uppercase; }
+.telegram-button-copy small { color: #82a6bb; font-size: 7px; white-space: nowrap; }
+
+/* Dashboard history no longer shows the redundant EVEN/ODD column. */
+.history-row { grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; font-size: 10.5px; }
+
+/* Latest signal replaces the empty text below Strategy Monitor. */
+.strategy-panel .donut { width: min(168px, 66%); margin: 19px auto 12px; }
+.latest-signal-card {
+    position: relative;
+    z-index: 2;
+    margin: 0 18px 18px;
+    padding: 14px;
+    border-top: 1px solid rgba(41, 119, 148, .22);
+    border-radius: 0 0 12px 12px;
+    background: linear-gradient(180deg, rgba(4, 28, 49, .18), rgba(3, 21, 39, .66));
+}
+.latest-signal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--cyan); font-size: 7px; font-weight: 850; letter-spacing: 1.1px; }
+.latest-status { padding: 3px 6px; border-radius: 99px; font-size: 7px; letter-spacing: .5px; }
+.latest-status.win { color: var(--green); background: rgba(32,230,166,.10); }
+.latest-status.lose { color: var(--red); background: rgba(255,61,49,.10); }
+.latest-status.waiting { color: var(--orange-soft); background: rgba(255,114,0,.10); }
+.latest-match { display: block; margin-top: 9px; overflow: hidden; color: #eef7ff; font-size: 11px; line-height: 1.4; white-space: nowrap; text-overflow: ellipsis; }
+.latest-location { margin-top: 7px; display: grid; gap: 4px; color: #92a5ba; font-size: 8px; }
+.latest-location span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.latest-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
+.latest-stats > div { min-width: 0; padding: 8px; border: 1px solid rgba(28, 111, 143, .24); border-radius: 8px; background: rgba(1, 13, 27, .46); }
+.latest-stats span, .latest-stats strong, .latest-stats small { display: block; }
+.latest-stats span { color: var(--muted); font-size: 7px; text-transform: uppercase; }
+.latest-stats strong { margin-top: 4px; color: #e7f2ff; font-size: 10px; }
+.latest-stats small { margin-top: 4px; font-size: 8px; }
+
+/* Signal journal readability. */
+.signals-heading-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.telegram-cta { display: inline-flex; align-items: center; min-height: 34px; padding: 0 13px; border: 1px solid rgba(16,214,232,.48); border-radius: 9px; background: linear-gradient(135deg, rgba(0,161,205,.22), rgba(3,32,55,.62)); color: var(--cyan-soft); font-size: 10px; font-weight: 800; letter-spacing: .35px; text-decoration: none; }
+.telegram-cta:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(16,214,232,.13); }
+.signals-table { font-size: 13px; }
+.signals-table th { padding: 15px 16px; font-size: 9.5px; }
+.signals-table td { padding: 16px; line-height: 1.45; }
+.signals-table .match-cell { max-width: 520px; }
+.signals-table .match-cell strong { font-size: 13.5px; }
+.signals-table .match-cell span { margin-top: 5px; font-size: 10px; }
+.signals-table .history-time { font-size: 11px; }
+.signals-table .history-pick { font-size: 13px; }
+.signals-table .status-chip { padding: 5px 9px; font-size: 9px; }
+
+/* Three interactive bankroll models. */
+.bank-config-button, .primary-button, .secondary-button {
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 800;
+    transition: .2s ease;
+}
+.bank-config-button { min-height: 38px; padding: 0 15px; border: 1px solid rgba(16,214,232,.48); background: rgba(4,35,59,.82); color: var(--cyan-soft); font-size: 10px; letter-spacing: .35px; }
+.bank-config-button:hover { transform: translateY(-1px); border-color: var(--cyan); box-shadow: 0 0 22px rgba(16,214,232,.13); }
+.bank-model-meta { position: relative; z-index: 2; padding: 2px 20px 0; color: var(--muted); font-size: 10px; }
+.bank-model-meta strong { margin-left: 4px; color: #f3f8ff; font-size: 12px; }
+.bank-model-chart { height: 390px; padding-top: 5px; }
+.bank-lines-legend { position: absolute; z-index: 4; top: 5px; right: 22px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.bank-lines-legend span { display: inline-flex; align-items: center; gap: 6px; color: #8fa2b7; font-size: 8px; }
+.bank-lines-legend i { width: 18px; height: 3px; border-radius: 99px; box-shadow: 0 0 8px currentColor; }
+.bank-model-line { fill: none; stroke-width: 2.35; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px rgba(16,214,232,.2)); }
+.bank-model-point { filter: drop-shadow(0 0 6px currentColor); }
+.bank-start-line { stroke: rgba(255,255,255,.24); stroke-width: 1; stroke-dasharray: 6 6; vector-effect: non-scaling-stroke; }
+.bank-model-summary { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 20px 20px; }
+.bank-model-result { min-width: 0; padding: 12px 14px; border: 1px solid rgba(26,111,142,.30); border-radius: 10px; background: rgba(2,16,31,.58); }
+.bank-model-result span, .bank-model-result strong, .bank-model-result small { display: block; }
+.bank-model-result span { color: var(--muted); font-size: 8px; text-transform: uppercase; }
+.bank-model-result strong { margin-top: 6px; overflow: hidden; color: #edf8ff; font-size: 16px; white-space: nowrap; text-overflow: ellipsis; }
+.bank-model-result small { margin-top: 5px; font-size: 9px; }
+.bank-model-result.model-0 { border-color: rgba(32,230,166,.28); }
+.bank-model-result.model-1 { border-color: rgba(16,214,232,.34); }
+.bank-model-result.model-2 { border-color: rgba(255,114,0,.34); }
+
+/* Bank amount modal. */
+.modal-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,5,14,.78); backdrop-filter: blur(10px); }
+.modal-card { position: relative; width: min(470px, 100%); padding: 28px; border: 1px solid rgba(16,214,232,.45); border-radius: 18px; background: linear-gradient(145deg, #071d35, #020b19 75%); box-shadow: 0 35px 100px rgba(0,0,0,.65); }
+.modal-card h2 { margin: 0; font-size: 23px; }
+.modal-card > p:not(.panel-kicker):not(.modal-note) { color: #a6b7c9; line-height: 1.65; font-size: 12px; }
+.modal-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border: 1px solid rgba(35,124,155,.35); border-radius: 9px; background: rgba(2,16,31,.7); color: #9bb1c5; font-size: 22px; cursor: pointer; }
+.bank-input-label { display: block; margin: 18px 0 8px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .8px; }
+.bank-input { width: 100%; height: 50px; padding: 0 15px; border: 1px solid rgba(24,145,176,.48); border-radius: 11px; outline: none; background: rgba(1,11,24,.86); color: #fff; font-size: 18px; }
+.bank-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(16,214,232,.09); }
+.bank-input.is-invalid { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,61,49,.09); }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.primary-button, .secondary-button { min-height: 44px; }
+.primary-button { border: 1px solid var(--cyan); background: linear-gradient(135deg, #08afc2, #087caa); color: white; }
+.secondary-button { border: 1px solid rgba(72,105,135,.45); background: rgba(5,22,40,.76); color: #aebed0; }
+.primary-button:hover, .secondary-button:hover { transform: translateY(-1px); }
+.modal-note { margin: 15px 0 0; color: #62758c; font-size: 9px; line-height: 1.5; }
+
+@media (max-width: 1280px) {
+    :root { --sidebar: 205px; }
+    .brand-title { font-size: 11.5px; }
+    .telegram-button-copy small { display: none; }
+    .bank-lines-legend { position: static; padding: 7px 18px 0; justify-content: flex-start; }
+}
+
+@media (max-width: 1040px) {
+    :root { --sidebar: 74px; }
+    .telegram-button { width: 52px; height: 52px; margin: 12px auto; padding: 0; justify-content: center; }
+    .telegram-button-copy { display: none; }
+    .telegram-button-icon { width: 34px; height: 34px; }
+    .bank-model-summary { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+    :root { --sidebar: 0px; }
+    .telegram-button { width: auto; height: auto; margin: 14px 2px 10px; padding: 11px 12px; justify-content: flex-start; }
+    .telegram-button-copy { display: flex; }
+    .signals-heading-actions { width: 100%; justify-content: flex-start; }
+    .telegram-cta { width: 100%; justify-content: center; }
+    .history-row { grid-template-columns: 42px minmax(0, 1fr) auto; }
+    .latest-stats { grid-template-columns: 1fr; }
+    .bank-config-button { width: 100%; }
+    .bank-model-chart { height: 300px; }
+    .bank-lines-legend { gap: 8px; }
+    .bank-model-summary { padding-left: 12px; padding-right: 12px; }
+    .signals-table { font-size: 11px; }
+    .signals-table td { padding: 12px; }
+}

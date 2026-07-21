@@ -7,6 +7,7 @@
         signalFilter: "all",
         activeView: "dashboard",
         refreshTimer: null,
+        bankrollAmount: null,
     };
 
     const viewMeta = {
@@ -163,10 +164,12 @@
         renderSummary(summary, strategy);
         renderLineChart($("#roi-chart"), data.roi_history || [], { compact: true });
         renderLineChart($("#strategy-roi-chart"), data.roi_history || [], { compact: false });
-        renderLineChart($("#bankroll-roi-chart"), data.roi_history || [], { compact: false });
         renderBarChart($("#bank-chart"), data.bank_daily || [], { compact: true });
         renderBarChart($("#bankroll-bar-chart"), data.bank_daily || [], { compact: false });
         renderHistory(data.recent_signals || []);
+        renderLatestSignal(data.latest_signal || null);
+        renderTelegramLinks(data.links?.telegram || "");
+        renderBankModels(data.bank_models || {});
         renderMatchTypes(data.match_types || []);
         renderSignalsTable(data.signals || []);
         renderBreakdownTable("#countries-table", data.countries || [], "country");
@@ -212,8 +215,6 @@
         if (metricRoi) metricRoi.className = roiClass(roi);
 
         setText("#strategy-rate", `${number(strategy.win_rate || 0, 2)}%`);
-        setText("#strategy-name", strategy.name || "Стратегия");
-        setText("#strategy-sample", `${number(strategy.sample || 0)} завершено`);
         const donut = $("#strategy-donut");
         if (donut) donut.style.setProperty("--value", `${Math.max(0, Math.min(100, Number(strategy.win_rate || 0))) * 3.6}deg`);
 
@@ -343,14 +344,175 @@
         }
         container.innerHTML = signals.slice(0, 10).map(signal => {
             const [resultClass, resultText] = resultLabel(signal);
-            const pick = predictionLabel(signal.prediction);
             return `<div class="history-row">
                 <span class="history-time">${formatTime(signal.datetime)}</span>
-                <strong class="history-pick ${pick === "ODD" ? "odd" : ""}">${pick}</strong>
                 <span class="history-match" title="${escapeHtml(signal.match)}">${escapeHtml(signal.match)}</span>
                 <span class="result-badge ${resultClass}">${resultClass === "win" ? "✓" : "×"} ${resultText}</span>
             </div>`;
         }).join("");
+    }
+
+    function renderLatestSignal(context) {
+        const container = $("#latest-signal-card");
+        if (!container) return;
+        if (!context?.signal) {
+            container.innerHTML = '<div class="empty-state">Последний сигнал появится после запуска стратегии</div>';
+            return;
+        }
+
+        const signal = context.signal;
+        const country = context.country_stats || {};
+        const league = context.league_stats || {};
+        const [resultClass, resultText] = resultLabel(signal);
+        const status = signal.status === "waiting"
+            ? '<span class="latest-status waiting">ОЖИДАЕТ</span>'
+            : `<span class="latest-status ${resultClass}">${resultText}</span>`;
+
+        container.innerHTML = `
+            <div class="latest-signal-head"><span>ПОСЛЕДНИЙ СИГНАЛ</span>${status}</div>
+            <strong class="latest-match" title="${escapeHtml(signal.match)}">${escapeHtml(signal.match)}</strong>
+            <div class="latest-location"><span>🌍 ${escapeHtml(signal.country)}</span><span>🏆 ${escapeHtml(signal.league)}</span></div>
+            <div class="latest-stats">
+                <div><span>По стране</span><strong>${number(country.total || 0)} · ${number(country.win_rate || 0, 2)}%</strong><small class="${roiClass(country.roi)}">ROI ${signed(country.roi || 0)}</small></div>
+                <div><span>По лиге</span><strong>${number(league.total || 0)} · ${number(league.win_rate || 0, 2)}%</strong><small class="${roiClass(league.roi)}">ROI ${signed(league.roi || 0)}</small></div>
+            </div>`;
+    }
+
+    function renderTelegramLinks(url) {
+        [$("#telegram-button"), $("#signals-telegram-button")].forEach(link => {
+            if (!link) return;
+            link.classList.toggle("is-hidden", !url);
+            if (url) link.href = url;
+        });
+    }
+
+    function readSavedBankroll(fallback) {
+        try {
+            const saved = Number(localStorage.getItem("eob-bankroll"));
+            return Number.isFinite(saved) && saved > 0 ? saved : fallback;
+        } catch (_) {
+            return fallback;
+        }
+    }
+
+    function saveBankroll(value) {
+        try { localStorage.setItem("eob-bankroll", String(value)); } catch (_) { /* private mode */ }
+    }
+
+    function formatCurrency(value) {
+        return new Intl.NumberFormat("ru-RU", {
+            style: "currency",
+            currency: "RUB",
+            maximumFractionDigits: 2,
+        }).format(Number(value || 0));
+    }
+
+    function renderBankModels(payload) {
+        const fallback = Number(payload.default_bankroll || 10000);
+        if (!Number.isFinite(state.bankrollAmount) || state.bankrollAmount <= 0) {
+            state.bankrollAmount = readSavedBankroll(fallback);
+        }
+        setText("#bankroll-current-amount", formatCurrency(state.bankrollAmount));
+        renderBankModelsChart($("#bankroll-model-chart"), payload.models || [], state.bankrollAmount);
+        renderBankModelSummary(payload.models || [], state.bankrollAmount);
+    }
+
+    function renderBankModelSummary(models, startBank) {
+        const container = $("#bank-model-summary");
+        if (!container) return;
+        if (!models.length) {
+            container.innerHTML = '<div class="empty-state">Нет завершённых сигналов для расчёта</div>';
+            return;
+        }
+        container.innerHTML = models.map((model, index) => {
+            const finalBank = startBank * Number(model.final_factor || 1);
+            const profit = finalBank - startBank;
+            return `<article class="bank-model-result model-${index}">
+                <span>${escapeHtml(model.title)} · ${number(model.stake_percent, 2)}%</span>
+                <strong>${formatCurrency(finalBank)}</strong>
+                <small class="${roiClass(profit)}">${signed(profit, " ₽")}</small>
+            </article>`;
+        }).join("");
+    }
+
+    function renderBankModelsChart(container, models, startBank) {
+        if (!container) return;
+        container.innerHTML = "";
+        const available = models.filter(model => Array.isArray(model.points) && model.points.length);
+        if (!available.length) {
+            container.innerHTML = '<div class="chart-empty">Пока нет завершённых сигналов для моделирования банка</div>';
+            return;
+        }
+
+        const width = 1180;
+        const height = 360;
+        const margin = { top: 24, right: 34, bottom: 48, left: 82 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        const colors = ["#20e6a6", "#10d6e8", "#ff7200"];
+        const allValues = available.flatMap(model => model.points.map(point => startBank * Number(point.factor || 1)));
+        allValues.push(startBank);
+        let min = Math.min(...allValues);
+        let max = Math.max(...allValues);
+        const padding = (max - min || Math.max(1, startBank * 0.01)) * 0.15;
+        min = Math.max(0, min - padding);
+        max += padding;
+        const maxPoints = Math.max(...available.map(model => model.points.length));
+        const x = index => margin.left + (maxPoints <= 1 ? innerWidth / 2 : index / (maxPoints - 1) * innerWidth);
+        const y = value => margin.top + (max - value) / (max - min || 1) * innerHeight;
+
+        const grids = Array.from({ length: 5 }, (_, index) => {
+            const value = max - index / 4 * (max - min);
+            const gy = y(value);
+            return `<line class="chart-grid-line" x1="${margin.left}" x2="${width - margin.right}" y1="${gy}" y2="${gy}"/><text class="chart-label" x="${margin.left - 10}" y="${gy + 3}" text-anchor="end">${escapeHtml(new Intl.NumberFormat("ru-RU", { notation: "compact", maximumFractionDigits: 1 }).format(value))}</text>`;
+        }).join("");
+
+        const paths = available.map((model, modelIndex) => {
+            const values = model.points.map(point => startBank * Number(point.factor || 1));
+            const path = values.map((value, index) => `${index ? "L" : "M"}${x(index).toFixed(2)},${y(value).toFixed(2)}`).join(" ");
+            const lastIndex = values.length - 1;
+            const lastValue = values[lastIndex];
+            return `<path class="bank-model-line" d="${path}" stroke="${colors[modelIndex % colors.length]}"/><circle class="bank-model-point" cx="${x(lastIndex)}" cy="${y(lastValue)}" r="4.5" fill="${colors[modelIndex % colors.length]}"><title>${escapeHtml(model.title)}: ${formatCurrency(lastValue)}</title></circle>`;
+        }).join("");
+
+        const referenceY = y(startBank);
+        const lastPoints = available[0].points;
+        const dateIndexes = [...new Set([0, Math.floor((lastPoints.length - 1) / 2), lastPoints.length - 1])];
+        const dates = dateIndexes.map(index => `<text class="chart-label" x="${x(index)}" y="${height - 8}" text-anchor="${index === 0 ? "start" : index === lastPoints.length - 1 ? "end" : "middle"}">${formatDate(lastPoints[index].datetime)}</text>`).join("");
+        const legend = available.map((model, index) => `<span><i style="background:${colors[index % colors.length]}"></i>${number(model.stake_percent, 2)}% · ${escapeHtml(model.title)}</span>`).join("");
+
+        container.innerHTML = `<div class="bank-lines-legend">${legend}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Сравнение моделей банка">
+            ${grids}
+            <line class="bank-start-line" x1="${margin.left}" x2="${width - margin.right}" y1="${referenceY}" y2="${referenceY}"/>
+            ${paths}${dates}
+        </svg>`;
+    }
+
+    function openBankModal() {
+        const modal = $("#bank-modal");
+        const input = $("#bankroll-input");
+        if (input) input.value = String(Math.round(state.bankrollAmount || 10000));
+        modal?.classList.remove("is-hidden");
+        requestAnimationFrame(() => input?.focus());
+    }
+
+    function closeBankModal() {
+        $("#bank-modal")?.classList.add("is-hidden");
+    }
+
+    function applyBankroll() {
+        const input = $("#bankroll-input");
+        const value = Number(input?.value || 0);
+        if (!Number.isFinite(value) || value <= 0 || value > 1_000_000_000_000) {
+            input?.classList.add("is-invalid");
+            input?.focus();
+            return;
+        }
+        input?.classList.remove("is-invalid");
+        state.bankrollAmount = value;
+        saveBankroll(value);
+        renderBankModels(state.data?.bank_models || {});
+        closeBankModal();
     }
 
     function typeIcon(key) {
@@ -487,9 +649,9 @@
             if (["dashboard", "strategies", "bankroll"].includes(view)) {
                 renderLineChart($("#roi-chart"), state.data.roi_history || [], { compact: true });
                 renderLineChart($("#strategy-roi-chart"), state.data.roi_history || [], { compact: false });
-                renderLineChart($("#bankroll-roi-chart"), state.data.roi_history || [], { compact: false });
                 renderBarChart($("#bank-chart"), state.data.bank_daily || [], { compact: true });
                 renderBarChart($("#bankroll-bar-chart"), state.data.bank_daily || [], { compact: false });
+                renderBankModels(state.data.bank_models || {});
             }
         });
     }
@@ -504,6 +666,12 @@
         $$(".nav-item").forEach(button => button.addEventListener("click", () => switchView(button.dataset.view)));
         $("#refresh-button")?.addEventListener("click", () => loadData());
         $("#menu-toggle")?.addEventListener("click", () => $("#sidebar")?.classList.toggle("is-open"));
+        $("#configure-bank-button")?.addEventListener("click", openBankModal);
+        $("#bank-modal-close")?.addEventListener("click", closeBankModal);
+        $("#bank-modal-cancel")?.addEventListener("click", closeBankModal);
+        $("#bank-modal-save")?.addEventListener("click", applyBankroll);
+        $("#bank-modal")?.addEventListener("click", event => { if (event.target.id === "bank-modal") closeBankModal(); });
+        $("#bankroll-input")?.addEventListener("keydown", event => { if (event.key === "Enter") applyBankroll(); });
         $$("[data-signal-filter]").forEach(button => button.addEventListener("click", () => {
             state.signalFilter = button.dataset.signalFilter;
             $$("[data-signal-filter]").forEach(item => item.classList.toggle("is-active", item === button));
@@ -514,12 +682,15 @@
             if (!state.data) return;
             renderLineChart($("#roi-chart"), state.data.roi_history || [], { compact: true });
             renderLineChart($("#strategy-roi-chart"), state.data.roi_history || [], { compact: false });
-            renderLineChart($("#bankroll-roi-chart"), state.data.roi_history || [], { compact: false });
             renderBarChart($("#bank-chart"), state.data.bank_daily || [], { compact: true });
             renderBarChart($("#bankroll-bar-chart"), state.data.bank_daily || [], { compact: false });
+            renderBankModels(state.data.bank_models || {});
         }, 180));
         document.addEventListener("keydown", event => {
-            if (event.key === "Escape") $("#sidebar")?.classList.remove("is-open");
+            if (event.key === "Escape") {
+                $("#sidebar")?.classList.remove("is-open");
+                closeBankModal();
+            }
         });
     }
 

@@ -23,7 +23,7 @@ BRAND_DIR = PROJECT_DIR / "assets" / "brand"
 
 BRAND_NAME = "EvenOddBasketBot"
 BRAND_TAGLINE = "Basketball Signal Analytics"
-BRAND_VERSION = "15.0"
+BRAND_VERSION = "15.1"
 
 BOT_SHORT_DESCRIPTION = (
     "Баскетбольная аналитика и LIVE-сигналы в реальном времени."

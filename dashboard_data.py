@@ -14,16 +14,20 @@ dashboard_data.py
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from collections import defaultdict
+from functools import lru_cache
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from branding import BRAND_VERSION
-from config import CHECK_INTERVAL
+from config import BOT_TOKEN, CHECK_INTERVAL
+from financial.bank_models import BANK_MODELS
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -31,6 +35,7 @@ SQLITE_PATH = PROJECT_DIR / "evenodd.db"
 DASHBOARD_TIMEZONE = os.getenv("DASHBOARD_TIMEZONE", "Europe/Moscow")
 MAX_PUBLIC_SIGNALS = 100
 MAX_ROI_POINTS = 240
+DEFAULT_BANKROLL = float(os.getenv("DASHBOARD_DEFAULT_BANKROLL", "10000"))
 
 MATCH_TYPE_ORDER = ("men", "youth", "women")
 MATCH_TYPE_LABELS = {
@@ -306,6 +311,114 @@ def _public_signal(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+
+
+def _scope_stats(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Возвращает статистику для уже отфильтрованной выборки."""
+
+    wins = sum(item["result"] == "win" for item in items)
+    loses = sum(item["result"] == "lose" for item in items)
+    return {
+        "total": wins + loses,
+        "wins": wins,
+        "loses": loses,
+        "win_rate": round(_percent(wins, loses), 2),
+        "roi": round(sum(float(item.get("roi") or 0) for item in items), 2),
+    }
+
+
+def _build_latest_signal_context(
+    all_signals_desc: list[dict[str, Any]],
+    finished: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Карточка последнего сигнала и история его страны/лиги."""
+
+    if not all_signals_desc:
+        return None
+
+    latest = all_signals_desc[0]
+    country_items = [
+        item for item in finished
+        if item["country"] == latest["country"]
+    ]
+    league_items = [
+        item for item in finished
+        if item["country"] == latest["country"]
+        and item["league"] == latest["league"]
+    ]
+
+    return {
+        "signal": _public_signal(latest),
+        "country_stats": _scope_stats(country_items),
+        "league_stats": _scope_stats(league_items),
+    }
+
+
+def _build_bank_models(finished: list[dict[str, Any]]) -> dict[str, Any]:
+    """Строит три модели банка с долей ставки 0.25%, 0.5% и 1%."""
+
+    models = []
+    for key, settings in BANK_MODELS.items():
+        stake_percent = float(settings["stake_percent"])
+        factor = 1.0
+        points = []
+
+        for index, item in enumerate(finished, start=1):
+            # ROI одной ставки хранится как +0.90 для WIN и -1.00 для LOSE.
+            # Изменение банка = текущий банк × доля ставки × ROI ставки.
+            factor *= 1 + (stake_percent / 100.0) * float(item["roi"])
+            factor = max(0.0, factor)
+            points.append({
+                "index": index,
+                "datetime": _finished_time(item).isoformat(),
+                "factor": round(factor, 8),
+                "result": item["result"],
+            })
+
+        models.append({
+            "key": key,
+            "title": settings["title"],
+            "stake_percent": stake_percent,
+            "description": settings["description"],
+            "points": points,
+            "final_factor": round(factor, 8),
+        })
+
+    return {
+        "default_bankroll": DEFAULT_BANKROLL,
+        "models": models,
+    }
+
+
+@lru_cache(maxsize=1)
+def _telegram_bot_url() -> str:
+    """Возвращает ссылку на Telegram-бота без публикации токена."""
+
+    explicit = os.getenv("TELEGRAM_BOT_URL", "").strip()
+    if explicit:
+        return explicit
+
+    username = os.getenv("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+    if username:
+        return f"https://t.me/{username}"
+
+    if not BOT_TOKEN:
+        return ""
+
+    try:
+        request = Request(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/getMe",
+            headers={"User-Agent": "EvenOddBasketBot-Dashboard/15.1"},
+        )
+        with urlopen(request, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        resolved = str(payload.get("result", {}).get("username") or "").strip()
+        return f"https://t.me/{resolved}" if resolved else ""
+    except Exception as error:
+        print("Dashboard: не удалось определить Telegram username:", error)
+        return ""
+
+
 def _risk_snapshot(recent_finished: list[dict[str, Any]]) -> dict[str, str]:
     sample = recent_finished[:10]
     wins = sum(item["result"] == "win" for item in sample)
@@ -412,6 +525,8 @@ def build_dashboard_payload() -> dict[str, Any]:
     match_types = _match_type_stats(finished)
     win_rate = _percent(wins, loses)
     streak = _current_streak(recent_finished)
+    latest_signal = _build_latest_signal_context(all_signals_desc, finished)
+    bank_models = _build_bank_models(finished)
 
     return {
         "generated_at": datetime.now(tz).isoformat(),
@@ -443,6 +558,9 @@ def build_dashboard_payload() -> dict[str, Any]:
         },
         "roi_history": roi_history,
         "bank_daily": bank_daily,
+        "bank_models": bank_models,
+        "latest_signal": latest_signal,
+        "links": {"telegram": _telegram_bot_url()},
         "recent_signals": [
             _public_signal(item) for item in recent_finished[:10]
         ],

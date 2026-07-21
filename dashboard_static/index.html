@@ -31,6 +31,11 @@
                 <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>О панели</span></button>
             </nav>
 
+            <a class="telegram-button is-hidden" id="telegram-button" href="#" target="_blank" rel="noopener noreferrer">
+                <span class="telegram-button-icon">➤</span>
+                <span class="telegram-button-copy"><b>Открыть Telegram</b><small>Перейти в нашего бота</small></span>
+            </a>
+
             <div class="engine-card">
                 <div class="engine-icon">✦</div>
                 <div>
@@ -103,7 +108,9 @@
                     <article class="panel strategy-panel">
                         <div class="panel-heading"><div><p class="panel-kicker">ЗА ВСЁ ВРЕМЯ</p><h2>Strategy Monitor</h2></div></div>
                         <div class="donut" id="strategy-donut"><div><strong id="strategy-rate">0.00%</strong><span>ПРОХОДИМОСТЬ</span></div></div>
-                        <div class="strategy-meta"><span id="strategy-name">Стратегия</span><strong id="strategy-sample">0 завершено</strong></div>
+                        <div class="latest-signal-card" id="latest-signal-card">
+                            <div class="empty-state">Последний сигнал появится после запуска стратегии</div>
+                        </div>
                     </article>
 
                     <article class="panel bank-panel">
@@ -137,14 +144,17 @@
                 <article class="panel full-panel">
                     <div class="panel-heading split-heading">
                         <div><p class="panel-kicker">ЖУРНАЛ</p><h2>Последние сигналы</h2></div>
-                        <div class="filter-row">
+                        <div class="signals-heading-actions">
+                            <a class="telegram-cta is-hidden" id="signals-telegram-button" href="#" target="_blank" rel="noopener noreferrer">➤ Открыть Telegram-бота</a>
+                            <div class="filter-row">
                             <button class="filter-button is-active" data-signal-filter="all">Все</button>
                             <button class="filter-button" data-signal-filter="waiting">Ожидают</button>
                             <button class="filter-button" data-signal-filter="win">WIN</button>
                             <button class="filter-button" data-signal-filter="lose">LOSE</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="table-scroll"><table class="data-table"><thead><tr><th>Дата</th><th>Матч</th><th>Тип</th><th>Прогноз</th><th>Статус</th><th>ROI</th></tr></thead><tbody id="signals-table"></tbody></table></div>
+                    <div class="table-scroll"><table class="data-table signals-table"><thead><tr><th>Дата</th><th>Матч</th><th>Тип</th><th>Прогноз</th><th>Статус</th><th>ROI</th></tr></thead><tbody id="signals-table"></tbody></table></div>
                 </article>
             </section>
 
@@ -172,7 +182,17 @@
 
             <section class="view" data-view-panel="bankroll">
                 <div class="detail-grid">
-                    <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">НАКОПИТЕЛЬНЫЙ РЕЗУЛЬТАТ</p><h2>Кривая ROI за всё время</h2></div></div><div class="chart-wrap bankroll-line" id="bankroll-roi-chart"></div></article>
+                    <article class="panel full-panel bank-model-panel">
+                        <div class="panel-heading split-heading">
+                            <div><p class="panel-kicker">ТРИ МОДЕЛИ РИСКА</p><h2>Динамика банка: 0.25% · 0.5% · 1%</h2></div>
+                            <button class="bank-config-button" id="configure-bank-button" type="button">⚙ Настроить банк</button>
+                        </div>
+                        <div class="bank-model-meta">
+                            <span>Стартовый банк:</span> <strong id="bankroll-current-amount">10 000 ₽</strong>
+                        </div>
+                        <div class="chart-wrap bankroll-line bank-model-chart" id="bankroll-model-chart"></div>
+                        <div class="bank-model-summary" id="bank-model-summary"></div>
+                    </article>
                     <article class="panel full-panel"><div class="panel-heading"><div><p class="panel-kicker">30 ДНЕЙ</p><h2>Изменение банка по суткам</h2></div></div><div class="chart-wrap bankroll-bars" id="bankroll-bar-chart"></div></article>
                 </div>
             </section>
@@ -193,6 +213,23 @@
 
             <footer class="footer">© 2026 EvenOddBasketBot · Basketball Signal Analytics · <span id="footer-version">v{{VERSION}}</span></footer>
         </main>
+    </div>
+
+
+    <div class="modal-backdrop is-hidden" id="bank-modal" role="dialog" aria-modal="true" aria-labelledby="bank-modal-title">
+        <div class="modal-card">
+            <button class="modal-close" id="bank-modal-close" type="button" aria-label="Закрыть">×</button>
+            <p class="panel-kicker">ПЕРСОНАЛЬНЫЙ РАСЧЁТ</p>
+            <h2 id="bank-modal-title">Настроить стартовый банк</h2>
+            <p>Введите сумму. График пересчитает три модели: ставка 0.25%, 0.5% и 1% от текущего банка.</p>
+            <label class="bank-input-label" for="bankroll-input">Сумма банка, ₽</label>
+            <input class="bank-input" id="bankroll-input" type="number" min="1" max="1000000000000" step="100" inputmode="decimal" value="10000">
+            <div class="modal-actions">
+                <button class="secondary-button" id="bank-modal-cancel" type="button">Отмена</button>
+                <button class="primary-button" id="bank-modal-save" type="button">Применить</button>
+            </div>
+            <p class="modal-note">Расчёт является моделью на основе прошлых сигналов и не гарантирует будущий результат.</p>
+        </div>
     </div>
 
     <div class="loading-overlay" id="loading-overlay"><div class="loader"></div><span>Синхронизация данных</span></div>

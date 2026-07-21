@@ -33,7 +33,7 @@ STATIC_DIR = (PROJECT_DIR / "dashboard_static").resolve()
 class DashboardHandler(BaseHTTPRequestHandler):
     """Обрабатывает браузер, API и проверки Render."""
 
-    server_version = "EvenOddBasketBot/15.0"
+    server_version = "EvenOddBasketBot/15.1"
 
     def log_message(self, format_string, *args):
         """Сохраняет компактный лог сервера."""

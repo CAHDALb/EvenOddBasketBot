@@ -76,3 +76,13 @@ Version 0.5 Beta
 - Полностью обновлён дизайн сайта Mission Control.
 - Добавлены favicon и безопасная раздача статических файлов.
 - Добавлена документация по бренду и настройке BotFather.
+
+## 15.1 — Dashboard refinement
+
+- Removed the redundant EVEN/ODD column from the compact history card.
+- Fixed sidebar brand overflow over page headings.
+- Added interactive bankroll models for 0.25%, 0.5% and 1% stake sizes.
+- Added a configurable starting bankroll stored locally in the browser.
+- Replaced the empty Strategy Monitor footer with the latest signal context and country/league statistics.
+- Increased signal journal readability.
+- Added persistent Telegram bot links.
